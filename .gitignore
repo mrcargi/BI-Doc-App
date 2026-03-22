@@ -1,0 +1,19 @@
+venv/
+__pycache__/
+*.pyc
+node_modules/
+.env
+
+# Database and data files
+data/pbidocs.db
+data/pbidocs.db-shm
+data/pbidocs.db-wal
+data/.secret_key
+data/*.json
+
+# PDFs uploaded by users
+pdfs/
+
+# Build outputs
+frontend/dist/
+static-react/assets/

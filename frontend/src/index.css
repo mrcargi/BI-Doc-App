@@ -1,0 +1,185 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Theme variables (outside @layer for maximum priority) ── */
+:root {
+  /* surface */
+  --color-surface-0:   255 255 255;
+  --color-surface-50:  250 250 249;
+  --color-surface-100: 245 245 244;
+  --color-surface-200: 231 229 228;
+  --color-surface-300: 214 211 209;
+
+  /* ink */
+  --color-ink-900: 28 25 23;
+  --color-ink-700: 68 64 60;
+  --color-ink-500: 120 113 108;
+  --color-ink-400: 168 162 158;
+  --color-ink-300: 214 211 209;
+
+  /* brand */
+  --color-brand-50:  240 253 244;
+  --color-brand-100: 220 252 231;
+  --color-brand-200: 187 247 208;
+  --color-brand-300: 134 239 172;
+  --color-brand-400: 74 222 128;
+  --color-brand-500: 34 197 94;
+  --color-brand-600: 22 163 74;
+  --color-brand-700: 21 128 61;
+  --color-brand-800: 22 101 52;
+  --color-brand-900: 20 83 45;
+  --color-brand-950: 5 46 22;
+
+  /* shadows */
+  --shadow-soft:  0 1px 3px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.03);
+  --shadow-card:  0 2px 8px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.03);
+  --shadow-float: 0 4px 16px rgba(0,0,0,.08), 0 12px 40px rgba(0,0,0,.04);
+  --shadow-glow:  0 0 20px rgba(22,163,74,.12);
+
+  /* scrollbar */
+  --scrollbar-thumb: #d6d3d1;
+  --scrollbar-hover: #a8a29e;
+}
+
+:root.dark {
+  --color-surface-0:   24 24 27;
+  --color-surface-50:  18 18 21;
+  --color-surface-100: 35 35 40;
+  --color-surface-200: 50 50 56;
+  --color-surface-300: 70 70 76;
+
+  --color-ink-900: 244 244 245;
+  --color-ink-700: 212 212 216;
+  --color-ink-500: 161 161 170;
+  --color-ink-400: 113 113 122;
+  --color-ink-300: 63 63 70;
+
+  --color-brand-50:  8 47 24;
+  --color-brand-100: 12 62 32;
+  --color-brand-200: 20 83 45;
+  --color-brand-300: 21 128 61;
+  --color-brand-400: 34 197 94;
+  --color-brand-500: 34 197 94;
+  --color-brand-600: 74 222 128;
+  --color-brand-700: 134 239 172;
+  --color-brand-800: 187 247 208;
+  --color-brand-900: 220 252 231;
+  --color-brand-950: 240 253 244;
+
+  --shadow-soft:  0 1px 3px rgba(0,0,0,.3), 0 4px 12px rgba(0,0,0,.2);
+  --shadow-card:  0 2px 8px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.2);
+  --shadow-float: 0 4px 16px rgba(0,0,0,.4), 0 12px 40px rgba(0,0,0,.3);
+  --shadow-glow:  0 0 20px rgba(34,197,94,.25);
+
+  --scrollbar-thumb: #52525b;
+  --scrollbar-hover: #71717a;
+}
+
+/* ── Dark-mode overrides for standard Tailwind accent colours ── */
+/* bg-*-50 → dark translucent tones */
+:root.dark .bg-blue-50    { background-color: rgba(37, 99, 235, 0.12) !important; }
+:root.dark .bg-violet-50  { background-color: rgba(124, 58, 237, 0.12) !important; }
+:root.dark .bg-amber-50   { background-color: rgba(217, 119, 6, 0.12) !important; }
+:root.dark .bg-orange-50  { background-color: rgba(234, 88, 12, 0.12) !important; }
+:root.dark .bg-red-50     { background-color: rgba(220, 38, 38, 0.12) !important; }
+:root.dark .bg-green-50   { background-color: rgba(22, 163, 74, 0.12) !important; }
+
+/* bg-*-100 (hover states) */
+:root.dark .bg-blue-100   { background-color: rgba(37, 99, 235, 0.2) !important; }
+:root.dark .bg-violet-100 { background-color: rgba(124, 58, 237, 0.2) !important; }
+:root.dark .bg-amber-100  { background-color: rgba(217, 119, 6, 0.2) !important; }
+
+/* text-*-600 → brighter in dark */
+:root.dark .text-blue-600   { color: #60a5fa !important; }
+:root.dark .text-violet-600 { color: #a78bfa !important; }
+:root.dark .text-amber-600  { color: #fbbf24 !important; }
+:root.dark .text-orange-600 { color: #fb923c !important; }
+:root.dark .text-red-600    { color: #f87171 !important; }
+:root.dark .text-green-600  { color: #4ade80 !important; }
+
+/* text-*-700 → lighter in dark */
+:root.dark .text-blue-700   { color: #93bbfd !important; }
+:root.dark .text-violet-700 { color: #c4b5fd !important; }
+:root.dark .text-amber-700  { color: #fcd34d !important; }
+:root.dark .text-red-700    { color: #fca5a5 !important; }
+
+/* border-*-200 → darker in dark */
+:root.dark .border-blue-200   { border-color: rgba(37, 99, 235, 0.25) !important; }
+:root.dark .border-violet-200 { border-color: rgba(124, 58, 237, 0.25) !important; }
+
+/* border-t accent colours */
+:root.dark .border-t-blue-500   { border-top-color: #3b82f6 !important; }
+:root.dark .border-t-violet-500 { border-top-color: #8b5cf6 !important; }
+:root.dark .border-t-amber-500  { border-top-color: #f59e0b !important; }
+:root.dark .border-t-brand-500  { border-top-color: rgb(var(--color-brand-500)) !important; }
+
+/* border-l accent colours */
+:root.dark .border-l-brand-500 { border-left-color: rgb(var(--color-brand-500)) !important; }
+:root.dark .border-l-blue-500  { border-left-color: #3b82f6 !important; }
+
+/* gradient from-violet */
+:root.dark .from-violet-300 { --tw-gradient-from: rgba(124, 58, 237, 0.5); }
+:root.dark .via-violet-200  { --tw-gradient-via: rgba(124, 58, 237, 0.3); }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+/* ── Design System Components ── */
+@layer components {
+  .form-input {
+    @apply w-full bg-surface-100 border border-surface-200 rounded-xl px-3 py-2.5
+           text-ink-900 text-[13px] font-sans outline-none transition-all duration-200;
+    @apply focus:border-brand-500 focus:bg-surface-0 focus:ring-2 focus:ring-brand-500/10;
+  }
+
+  .btn {
+    @apply px-4 py-2 rounded-xl text-[13px] font-semibold cursor-pointer
+           transition-all duration-200 border border-surface-200 bg-surface-0 text-ink-700
+           inline-flex items-center gap-2 shadow-soft;
+    @apply hover:bg-surface-50 hover:shadow-card hover:border-surface-300;
+    @apply active:scale-[0.98];
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 rounded-xl text-[13px] font-semibold cursor-pointer
+           transition-all duration-200 border-0 text-white
+           inline-flex items-center gap-2 shadow-soft;
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    @apply hover:shadow-glow hover:brightness-110;
+    @apply active:scale-[0.98];
+  }
+
+  .card {
+    @apply bg-surface-0 rounded-2xl border border-surface-200/60 shadow-soft
+           transition-all duration-300;
+    @apply hover:shadow-card;
+  }
+
+  .card-header {
+    @apply px-5 py-3.5 border-b border-surface-100;
+  }
+
+  .card-body {
+    @apply p-5;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium
+           text-ink-500 cursor-pointer transition-all duration-200;
+    @apply hover:bg-brand-50 hover:text-brand-700;
+  }
+
+  .sidebar-item-active {
+    @apply bg-brand-50 text-brand-700 shadow-soft;
+  }
+}
+
+/* ── Print ── */
+@media print {
+  @page { size: A4; margin: 16mm; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
