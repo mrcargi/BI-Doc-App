@@ -447,6 +447,29 @@ def migrate_from_json():
     conn.commit()
     conn.close()
 
+def sync_areas_from_json():
+    """Replace DB areas with the committed JSON seed file when present."""
+    areas_file = DATA_DIR / "areas.json"
+    if not areas_file.exists():
+        return
+
+    with open(areas_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    areas = data.get('areas', [])
+    conn = get_db()
+    conn.execute("DELETE FROM areas")
+    for area in areas:
+        aid = area.get('id', '')
+        if not aid:
+            continue
+        conn.execute(
+            "INSERT INTO areas (id, data) VALUES (?, ?)",
+            (aid, json.dumps(area, ensure_ascii=False))
+        )
+    conn.commit()
+    conn.close()
+
 def ensure_admin_exists():
     """Create default admin user if no users exist."""
     conn = get_db()
@@ -463,4 +486,5 @@ def bootstrap():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     init_db()
     migrate_from_json()
+    sync_areas_from_json()
     ensure_admin_exists()
