@@ -10,6 +10,7 @@ data/pbidocs.db-shm
 data/pbidocs.db-wal
 data/.secret_key
 data/*.json
+!data/areas.json
 
 # PDFs uploaded by users
 pdfs/
