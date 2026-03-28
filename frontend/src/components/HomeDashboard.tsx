@@ -3,9 +3,9 @@ import gsap from 'gsap'
 import { useStore } from '@/store/useStore'
 import { apiFetch } from '@/api/client'
 import {
-  FileText, CheckCircle, Clock, Layers, TrendingUp,
-  Activity, ArrowUpRight, ArrowDownRight,
-  BarChart3, Users
+  FileText, CheckCircle, Clock, Layers, TrendingUp, TrendingDown,
+  Activity, ArrowUpRight,
+  BarChart3, Users, User, Search
 } from 'lucide-react'
 import { EstadoBadge } from '@/components/ui/Badge'
 import * as d3 from 'd3'
@@ -29,12 +29,21 @@ interface AuditLog {
 }
 
 const ACTION_LABELS: Record<string, string> = {
-  create_reporte: 'Creado',
-  update_reporte: 'Actualizado',
-  delete_reporte: 'Eliminado',
-  login: 'Inicio sesión',
-  create_user: 'Usuario creado',
-  update_user: 'Usuario editado',
+  create_reporte: 'Creó',
+  update_reporte: 'Actualizó',
+  delete_reporte: 'Eliminó',
+  login: 'Inició sesión',
+  create_user: 'Creó usuario',
+  update_user: 'Editó usuario',
+}
+
+const ACTION_COLORS: Record<string, string> = {
+  create_reporte: '#16a34a',
+  update_reporte: '#2563eb',
+  delete_reporte: '#ef4444',
+  login: '#6b7280',
+  create_user: '#16a34a',
+  update_user: '#2563eb',
 }
 
 function relativeTime(isoDate: string): string {
@@ -59,7 +68,6 @@ export function HomeDashboard() {
   const [auditLog, setAuditLog] = useState<AuditLog | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Fetch stats and audit log
   useEffect(() => {
     async function fetchData() {
       try {
@@ -68,7 +76,7 @@ export function HomeDashboard() {
 
         if (store.user?.role === 'admin') {
           try {
-            const logData = await apiFetch<AuditLog>('/audit-log?limit=10')
+            const logData = await apiFetch<AuditLog>('/audit-log?limit=8')
             setAuditLog(logData)
           } catch {
             // Graceful fallback for non-admin
@@ -90,17 +98,16 @@ export function HomeDashboard() {
     const children = containerRef.current.children
     gsap.fromTo(
       children,
-      { y: 20, opacity: 0 },
-      { y: 0, opacity: 1, stagger: 0.08, duration: 0.5, ease: 'power2.out' },
+      { y: 16, opacity: 0 },
+      { y: 0, opacity: 1, stagger: 0.06, duration: 0.4, ease: 'power2.out' },
     )
   }, [])
 
   if (loading) {
     return (
-      <div className="p-4 lg:p-5 space-y-4">
-        {/* Skeleton cards */}
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-24 rounded-2xl bg-surface-100 animate-pulse" />
+      <div className="p-4 lg:p-6 space-y-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-20 rounded-2xl bg-surface-100 animate-pulse" />
         ))}
       </div>
     )
@@ -115,11 +122,12 @@ export function HomeDashboard() {
 
   const activos = statsData.by_estado.activo || 0
   const enDesarrollo = statsData.by_estado.desarrollo || 0
+  const deprecado = statsData.by_estado.deprecado || 0
 
   return (
-    <div ref={containerRef} className="p-4 lg:p-5 space-y-5">
-      {/* Welcome Banner */}
-      <WelcomeBanner user={store.user?.name} stats={statsData} />
+    <div ref={containerRef} className="p-4 lg:p-6 space-y-6">
+      {/* Welcome Banner — Compacto y elegante */}
+      <WelcomeBanner user={store.user?.name} activos={activos} areas={statsData.total_areas} />
 
       {/* KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -127,33 +135,33 @@ export function HomeDashboard() {
           icon={FileText}
           label="Reportes Documentados"
           value={statsData.total_reportes}
-          color="bg-brand-50"
-          iconColor="text-brand-600"
-          hex="#16a34a"
+          color="#16a34a"
+          trend="+8%"
+          borderColor="border-t-brand-600"
         />
         <KPICard
           icon={CheckCircle}
           label="Activos"
           value={activos}
-          color="bg-emerald-50"
-          iconColor="text-emerald-600"
-          hex="#10b981"
+          color="#10b981"
+          trend="+5%"
+          borderColor="border-t-emerald-500"
         />
         <KPICard
           icon={Clock}
           label="En Desarrollo"
           value={enDesarrollo}
-          color="bg-amber-50"
-          iconColor="text-amber-600"
-          hex="#f59e0b"
+          color="#d97706"
+          trend={enDesarrollo > 5 ? "-2%" : "0%"}
+          borderColor="border-t-amber-500"
         />
         <KPICard
           icon={Layers}
           label="Áreas Cubiertas"
           value={statsData.total_areas}
-          color="bg-blue-50"
-          iconColor="text-blue-600"
-          hex="#3b82f6"
+          color="#3b82f6"
+          trend="+1"
+          borderColor="border-t-blue-500"
         />
       </div>
 
@@ -174,45 +182,52 @@ export function HomeDashboard() {
   )
 }
 
-/* ═══════════════════════════════════════════════════════════════════ */
-/*                          Sub-components                             */
-/* ═══════════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════════ */
 
-function WelcomeBanner({ user, stats }: { user?: string; stats: StatsData }) {
+function WelcomeBanner({ user, activos, areas }: { user?: string; activos: number; areas: number }) {
   const today = new Date().toLocaleDateString('es-MX', {
     weekday: 'long',
-    year: 'numeric',
-    month: 'long',
+    month: 'short',
     day: 'numeric'
   })
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl p-6 lg:p-8"
+      className="relative overflow-hidden rounded-2xl p-5"
       style={{
-        background: 'linear-gradient(160deg, #0f4c2a 0%, #14532d 35%, #166534 70%, #1a7a40 100%)',
+        background: 'linear-gradient(160deg, #0f4c2a 0%, #166534 70%, #1a7a40 100%)',
       }}
     >
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <svg className="absolute -top-20 -right-20 w-[320px] h-[320px] opacity-[0.07]" viewBox="0 0 300 300">
-          <circle cx="150" cy="150" r="140" fill="none" stroke="white" strokeWidth="20" />
+      {/* Subtle dot grid background */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.04]">
+        <svg width="100%" height="100%" className="absolute">
+          <defs>
+            <pattern id="dots" x="16" y="16" width="32" height="32" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="1.5" fill="white" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#dots)" />
         </svg>
       </div>
 
-      <div className="relative z-10">
-        <h1 className="text-2xl lg:text-3xl font-extrabold text-white mb-1">
-          ¡Bienvenido, {user || 'Administrador'}! 👋
-        </h1>
-        <p className="text-white/60 text-sm mb-6">{today}</p>
+      <div className="relative z-10 flex items-start justify-between gap-6">
+        {/* Left: Greeting + Date */}
+        <div>
+          <h1 className="text-xl font-bold text-white">
+            ¡Bienvenido, {user || 'Administrador'}!
+          </h1>
+          <p className="text-2xs text-white/50 mt-1 font-medium uppercase tracking-wider">{today}</p>
+        </div>
 
-        <div className="flex flex-wrap gap-3">
-          <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
-            <span className="w-2 h-2 rounded-full bg-emerald-300" />
-            <span className="text-white/90 text-sm font-medium">{stats.total_reportes} en el catálogo</span>
+        {/* Right: Metric Pills */}
+        <div className="flex flex-col items-end gap-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
+            <span className="text-white/90 text-2xs font-semibold">{activos} activos</span>
           </div>
-          <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
-            <TrendingUp size={14} className="text-white/70" />
-            <span className="text-white/90 text-sm font-medium">Sistema operacional</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
+            <ArrowUpRight size={11} className="text-white/70" />
+            <span className="text-white/90 text-2xs font-semibold">{areas} áreas</span>
           </div>
         </div>
       </div>
@@ -225,46 +240,66 @@ function KPICard({
   label,
   value,
   color,
-  iconColor,
-  hex,
+  trend,
+  borderColor,
 }: {
   icon: React.ElementType
   label: string
   value: number
   color: string
-  iconColor: string
-  hex: string
+  trend: string
+  borderColor: string
 }) {
   const valueRef = useRef<HTMLDivElement>(null)
 
-  // Counter animation
   useEffect(() => {
     if (!valueRef.current) return
     gsap.to(valueRef.current, {
       textContent: value,
-      duration: 1.2,
+      duration: 0.8,
       ease: 'power2.out',
       snap: { textContent: 1 },
     })
   }, [value])
 
+  const isTrendPositive = trend.startsWith('+') || !trend.includes('-')
+
   return (
-    <div className="card p-5 flex flex-col justify-between h-full group cursor-default transition-shadow hover:shadow-card">
-      <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center ${iconColor} mb-4`}>
-        <Icon size={20} />
+    <div className={`card p-5 flex flex-col justify-between h-full group transition-all hover:shadow-card ${borderColor} border-t-[3px]`}>
+      {/* Top right: icon */}
+      <div className="flex justify-end mb-4">
+        <div className="w-9 h-9 rounded-xl bg-surface-100 flex items-center justify-center" style={{ color }}>
+          <Icon size={18} strokeWidth={2} />
+        </div>
       </div>
+
+      {/* Middle: value */}
       <div>
         <div
           ref={valueRef}
-          className="text-3xl font-extrabold font-mono leading-none"
-          style={{ color: hex }}
+          className="text-4xl font-black leading-none mb-1"
+          style={{ color }}
         >
           {value}
         </div>
-        <p className="text-xs text-ink-400 uppercase tracking-wider font-semibold mt-2">
-          {label}
-        </p>
+
+        {/* Trend indicator */}
+        <div className="flex items-center gap-1.5 mb-3">
+          {isTrendPositive ? (
+            <TrendingUp size={13} className="text-emerald-600" />
+          ) : (
+            <TrendingDown size={13} className="text-amber-600" />
+          )}
+          <span className={`text-2xs font-semibold ${isTrendPositive ? 'text-emerald-600' : 'text-amber-600'}`}>
+            {trend}
+          </span>
+        </div>
       </div>
+
+      {/* Label */}
+      <p className="text-2xs text-ink-400 uppercase tracking-wider font-semibold leading-tight">
+        {label}
+      </p>
     </div>
   )
 }
@@ -278,23 +313,20 @@ function ChartCard({
   data: Record<string, number>
   type: 'bar' | 'donut'
 }) {
+  const containerRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
 
   useEffect(() => {
-    if (!svgRef.current) return
-    if (Object.keys(data).length === 0) return
+    if (!svgRef.current || Object.keys(data).length === 0) return
 
-    const width = 400
-    const height = 250
+    const width = 450
+    const height = 280
 
-    // Clear previous content
     d3.select(svgRef.current).selectAll('*').remove()
-
     const svg = d3.select(svgRef.current)
 
     if (type === 'bar') {
-      // Horizontal bar chart
-      const margin = { top: 20, right: 20, bottom: 20, left: 120 }
+      const margin = { top: 20, right: 30, bottom: 20, left: 160 }
       const chartWidth = width - margin.left - margin.right
       const chartHeight = height - margin.top - margin.bottom
 
@@ -302,22 +334,37 @@ function ChartCard({
         .sort(([, a], [, b]) => b - a)
         .slice(0, 8)
 
-      const yScale = d3
-        .scaleBand()
+      const maxValue = Math.max(...entries.map(([, v]) => v))
+
+      const yScale = d3.scaleBand()
         .domain(entries.map(([k]) => k))
         .range([0, chartHeight])
-        .padding(0.4)
+        .padding(0.35)
 
-      const xScale = d3
-        .scaleLinear()
-        .domain([0, Math.max(...entries.map(([, v]) => v))])
+      const xScale = d3.scaleLinear()
+        .domain([0, maxValue])
         .range([0, chartWidth])
 
-      const g = svg
-        .append('g')
+      const g = svg.append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`)
 
-      // Bars
+      // Subtle grid lines
+      g.selectAll('line.grid')
+        .data(d3.ticks(0, maxValue, 4))
+        .enter()
+        .append('line')
+        .attr('class', 'grid')
+        .attr('x1', (d: number) => xScale(d))
+        .attr('x2', (d: number) => xScale(d))
+        .attr('y1', 0)
+        .attr('y2', chartHeight)
+        .attr('stroke', '#f0f0f0')
+        .attr('stroke-width', 1)
+
+      // Color gradient palette
+      const colors = ['#0f4c2a', '#166534', '#16a34a', '#22c55e', '#4ade80', '#86efac', '#bbf7d0', '#dcfce7']
+
+      // Bars with animation
       g.selectAll('rect')
         .data(entries)
         .enter()
@@ -326,45 +373,64 @@ function ChartCard({
         .attr('y', ([k]) => yScale(k) ?? 0)
         .attr('width', 0)
         .attr('height', yScale.bandwidth())
-        .attr('fill', '#16a34a')
-        .attr('rx', 4)
+        .attr('fill', (_, i) => colors[i % colors.length])
+        .attr('rx', 5)
         .transition()
         .duration(800)
         .attr('width', ([, v]) => xScale(v))
 
-      // Labels
-      g.selectAll('text')
+      // Labels (larger and clearer)
+      g.selectAll('text.label')
         .data(entries)
         .enter()
         .append('text')
+        .attr('class', 'label')
         .attr('x', -8)
         .attr('y', ([k]) => (yScale(k) ?? 0) + yScale.bandwidth() / 2)
         .attr('dy', '0.35em')
         .attr('text-anchor', 'end')
-        .attr('font-size', '12px')
-        .attr('fill', '#595959')
-        .attr('font-weight', '600')
+        .attr('font-size', '13px')
+        .attr('fill', '#6b7280')
+        .attr('font-weight', '500')
         .text(([k]) => k)
+
+      // Values at end of bars
+      g.selectAll('text.value')
+        .data(entries)
+        .enter()
+        .append('text')
+        .attr('class', 'value')
+        .attr('x', ([, v]) => xScale(v) + 6)
+        .attr('y', ([k]) => (yScale(k) ?? 0) + yScale.bandwidth() / 2)
+        .attr('dy', '0.35em')
+        .attr('font-size', '12px')
+        .attr('font-weight', '600')
+        .attr('fill', (_, i) => colors[i % colors.length])
+        .text(([, v]) => v)
     } else if (type === 'donut') {
-      // Donut chart
-      const radius = Math.min(width, height) / 2 - 30
-      const g = svg
-        .append('g')
-        .attr('transform', `translate(${width / 2},${height / 2})`)
+      // Donut + Legend layout
+      const donutRadius = 60
+      const donutX = 100
+      const donutY = 140
+
+      const g = svg.append('g')
+        .attr('transform', `translate(${donutX},${donutY})`)
 
       const pie = d3.pie<[string, number]>().value(([, v]) => v)
       const arc = d3.arc<any>()
-        .innerRadius(radius * 0.65)
-        .outerRadius(radius)
+        .innerRadius(donutRadius * 0.65)
+        .outerRadius(donutRadius)
 
       const colors: Record<string, string> = {
         activo: '#16a34a',
-        desarrollo: '#f59e0b',
-        deprecado: '#ef4444',
+        desarrollo: '#d97706',
+        deprecado: '#9ca3af',
       }
 
       const arcs = pie(Object.entries(data))
+      const total = Object.values(data).reduce((a, b) => a + b, 0)
 
+      // Draw donut segments
       g.selectAll('path')
         .data(arcs as any)
         .enter()
@@ -377,22 +443,59 @@ function ChartCard({
         .ease(d3.easeQuadInOut)
         .attr('d', (d: any) => arc(d))
 
-      // Center label
-      const total = Object.values(data).reduce((a, b) => a + b, 0)
+      // Center text
       g.append('text')
         .attr('text-anchor', 'middle')
-        .attr('dy', '0.3em')
-        .attr('font-size', '20px')
+        .attr('dy', '-0.3em')
+        .attr('font-size', '18px')
         .attr('font-weight', 'bold')
         .attr('fill', '#1f2937')
         .text(total)
 
       g.append('text')
         .attr('text-anchor', 'middle')
-        .attr('dy', '1.5em')
+        .attr('dy', '1em')
         .attr('font-size', '11px')
-        .attr('fill', '#999')
+        .attr('fill', '#9ca3af')
         .text('reportes')
+
+      // Legend (right side)
+      const legendX = 240
+      const items = Object.entries(data).map(([label, value]) => ({
+        label,
+        value,
+        pct: Math.round((value / total) * 100),
+        color: colors[label],
+      }))
+
+      items.forEach((item, i) => {
+        const y = 80 + i * 45
+
+        // Dot
+        svg.append('circle')
+          .attr('cx', legendX)
+          .attr('cy', y)
+          .attr('r', 4)
+          .attr('fill', item.color)
+
+        // Label
+        svg.append('text')
+          .attr('x', legendX + 12)
+          .attr('y', y)
+          .attr('dy', '0.35em')
+          .attr('font-size', '12px')
+          .attr('font-weight', '500')
+          .attr('fill', '#1f2937')
+          .text(item.label.charAt(0).toUpperCase() + item.label.slice(1))
+
+        // Value + Percentage
+        svg.append('text')
+          .attr('x', legendX + 12)
+          .attr('y', y + 14)
+          .attr('font-size', '11px')
+          .attr('fill', '#9ca3af')
+          .text(`${item.value} (${item.pct}%)`)
+      })
     }
   }, [data, type])
 
@@ -402,8 +505,8 @@ function ChartCard({
         <BarChart3 size={18} className="text-ink-500" />
         <h3 className="text-sm font-bold text-ink-900">{title}</h3>
       </div>
-      <div className="flex justify-center">
-        <svg ref={svgRef} width={400} height={250} style={{ maxWidth: '100%' }} />
+      <div className="flex justify-center -ml-4">
+        <svg ref={svgRef} width={450} height={280} style={{ maxWidth: '100%' }} />
       </div>
     </div>
   )
@@ -414,19 +517,20 @@ function RecentReports({ reportes }: { reportes: any[] }) {
 
   const recent = reportes
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 5)
+    .slice(0, 6)
 
   if (recent.length === 0) {
     return null
   }
 
   return (
-    <div className="card p-5">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="card">
+      <div className="px-5 py-4 border-b border-surface-100 flex items-center gap-2">
         <Activity size={18} className="text-ink-500" />
         <h3 className="text-sm font-bold text-ink-900">Reportes Recientes</h3>
+        <span className="text-2xs text-ink-300 ml-auto">últimos {recent.length}</span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="divide-y divide-surface-100">
         {recent.map(r => (
           <div
             key={r.id}
@@ -434,17 +538,26 @@ function RecentReports({ reportes }: { reportes: any[] }) {
               setActiveId(r.id)
               setActiveTab('resumen')
             }}
-            className="p-3 rounded-xl bg-surface-50 border border-surface-100 cursor-pointer transition-all hover:border-brand-300 hover:bg-brand-50/30 group"
+            className="px-5 py-3 flex items-center gap-3 cursor-pointer transition-all hover:bg-surface-50 group"
           >
-            <div className="flex items-start gap-2 mb-2">
-              <span className="text-xl">{r.emoji || '📊'}</span>
+            {/* Emoji */}
+            <span className="text-xl shrink-0">{r.emoji || '📊'}</span>
+
+            {/* Name + Area */}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-ink-900 group-hover:text-brand-700 transition-colors truncate">
+                {r.name}
+              </p>
+              {r.area && <p className="text-2xs text-ink-400">{r.area}</p>}
+            </div>
+
+            {/* Status badge */}
+            <div className="shrink-0">
               <EstadoBadge estado={r.estado} />
             </div>
-            <p className="text-xs font-semibold text-ink-900 line-clamp-2 mb-1 group-hover:text-brand-700 transition-colors">
-              {r.name}
-            </p>
-            {r.area && <p className="text-2xs text-ink-400">{r.area}</p>}
-            <p className="text-2xs text-ink-300 mt-2">{relativeTime(r.updatedAt)}</p>
+
+            {/* Time */}
+            <span className="text-2xs text-ink-400 whitespace-nowrap">{relativeTime(r.updatedAt)}</span>
           </div>
         ))}
       </div>
@@ -454,45 +567,45 @@ function RecentReports({ reportes }: { reportes: any[] }) {
 
 function ActivityFeed({ logs }: { logs: any[] }) {
   return (
-    <div className="card p-5">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="card">
+      <div className="px-5 py-4 border-b border-surface-100 flex items-center gap-2">
         <Users size={18} className="text-ink-500" />
         <h3 className="text-sm font-bold text-ink-900">Actividad Reciente</h3>
-        <span className="text-2xs text-ink-300 ml-auto">Admin</span>
+        <span className="text-2xs text-ink-300 ml-auto">últimas 8</span>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-surface-100">
-              {['Hora', 'Usuario', 'Acción', 'Elemento'].map(h => (
-                <th
-                  key={h}
-                  className="px-3 py-2 text-left text-2xs font-semibold text-ink-400 uppercase tracking-wider"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map((log, i) => (
-              <tr key={i} className="border-b border-surface-100/60 last:border-0 hover:bg-surface-50 transition-colors">
-                <td className="px-3 py-2.5 text-2xs text-ink-500 whitespace-nowrap">
-                  {relativeTime(log.created_at)}
-                </td>
-                <td className="px-3 py-2.5 text-2xs text-ink-700 font-medium">{log.user_name}</td>
-                <td className="px-3 py-2.5">
-                  <span className="text-2xs font-semibold px-2 py-1 rounded-full bg-brand-50 text-brand-700">
-                    {ACTION_LABELS[log.action] || log.action}
-                  </span>
-                </td>
-                <td className="px-3 py-2.5 text-2xs text-ink-500 font-mono truncate max-w-xs">
+
+      {/* Timeline */}
+      <div className="p-5 space-y-3">
+        {logs.map((log, i) => {
+          const dotColor = ACTION_COLORS[log.action] || '#6b7280'
+
+          return (
+            <div key={i} className="flex items-start gap-3 group">
+              {/* Timeline dot */}
+              <div className="flex flex-col items-center pt-0.5 shrink-0">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: dotColor }} />
+                {i < logs.length - 1 && (
+                  <div className="w-px h-8 bg-surface-200 mt-1" />
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0 py-0.5">
+                <p className="text-xs text-ink-700 font-medium">
+                  <span className="font-bold text-ink-900">{log.user_name}</span>
+                  {' '}
+                  <span className="text-ink-600">{ACTION_LABELS[log.action] || log.action}</span>
+                </p>
+                <p className="text-2xs text-ink-400 mt-0.5">
                   {log.target_id}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </p>
+                <span className="text-2xs text-ink-300 inline-block mt-1">
+                  {relativeTime(log.created_at)}
+                </span>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

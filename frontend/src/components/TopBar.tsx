@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Bell, Settings, Check, CheckCheck, FileText, Upload, RefreshCw } from 'lucide-react'
+import { Bell, Settings, Check, CheckCheck, FileText, Upload, RefreshCw, Search, X } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { apiFetch } from '@/api/client'
 
@@ -22,10 +22,14 @@ export function TopBar({ onOpenUserMenu }: TopBarProps) {
   const doc = reportes.find(r => r.id === activeId)
   const firstName = user?.name?.split(' ')[0] || 'Usuario'
 
-  const [open, setOpen] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unread, setUnread] = useState(0)
-  const dropRef = useRef<HTMLDivElement>(null)
+  const notifDropRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const tabLabels: Record<string, string> = {
     resumen: 'Resumen', modelo: 'Modelo', columnas: 'Columnas',
@@ -33,6 +37,15 @@ export function TopBar({ onOpenUserMenu }: TopBarProps) {
     notificaciones: 'Notificaciones',
     guia: 'Guia de Uso',
   }
+
+  // Filtered search results
+  const searchResults = searchQuery.trim()
+    ? reportes.filter(r =>
+        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.area?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.id.toLowerCase().includes(searchQuery.toLowerCase())
+      ).slice(0, 6)
+    : []
 
   // Load notifications
   async function loadNotifications() {
@@ -43,24 +56,34 @@ export function TopBar({ onOpenUserMenu }: TopBarProps) {
     } catch (e) { console.error('Notifications load error:', e) }
   }
 
-  // Poll every 15s + reload when reportes change
+  // Poll notifications
   useEffect(() => {
     loadNotifications()
     const interval = setInterval(loadNotifications, 15000)
     return () => clearInterval(interval)
   }, [reportes.length])
 
-  // Close on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
-    if (!open) return
+    if (!notifOpen && !searchOpen) return
     function handleClick(e: MouseEvent) {
-      if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
-        setOpen(false)
+      if (notifDropRef.current && !notifDropRef.current.contains(e.target as Node)) {
+        setNotifOpen(false)
+      }
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [open])
+  }, [notifOpen, searchOpen])
+
+  // Focus search input
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [searchOpen])
 
   async function markAllRead() {
     try {
@@ -83,8 +106,15 @@ export function TopBar({ onOpenUserMenu }: TopBarProps) {
     if (n.reporte_id) {
       setActiveId(n.reporte_id)
       setActiveTab('resumen')
-      setOpen(false)
+      setNotifOpen(false)
     }
+  }
+
+  function handleSearchClick(reporteId: string) {
+    setActiveId(reporteId)
+    setActiveTab('resumen')
+    setSearchOpen(false)
+    setSearchQuery('')
   }
 
   function timeAgo(dateStr: string) {
@@ -107,9 +137,9 @@ export function TopBar({ onOpenUserMenu }: TopBarProps) {
   }
 
   return (
-    <header className="h-12 border-b border-surface-200/60 bg-surface-0/80 backdrop-blur-md sticky top-0 z-20 flex items-center px-5 gap-3">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs min-w-0">
+    <header className="h-13 border-b border-surface-200/60 bg-surface-0/80 backdrop-blur-md sticky top-0 z-20 flex items-center px-5 gap-4">
+      {/* Breadcrumb — Left */}
+      <div className="flex items-center gap-2 text-xs min-w-0 flex-1">
         {doc && (
           <>
             <span className="text-ink-400 shrink-0">{doc.area || 'PBI Docs'}</span>
@@ -121,28 +151,84 @@ export function TopBar({ onOpenUserMenu }: TopBarProps) {
         )}
       </div>
 
+      {/* Global Search — Center */}
+      <div className="relative w-64" ref={searchRef}>
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
+          searchOpen
+            ? 'bg-surface-0 border-brand-300 ring-2 ring-brand-500/10 w-80'
+            : 'bg-surface-50 border-surface-200 hover:border-surface-300'
+        }`}>
+          <Search size={15} className="text-ink-400 shrink-0" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Buscar reportes..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            onFocus={() => setSearchOpen(true)}
+            className="flex-1 bg-transparent outline-none text-xs text-ink-900 placeholder:text-ink-300"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => {
+                setSearchQuery('')
+                setSearchOpen(false)
+              }}
+              className="text-ink-300 hover:text-ink-500 transition-colors shrink-0"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Search Dropdown */}
+        {searchOpen && searchQuery.trim() && (
+          <div className="absolute left-0 right-0 top-full mt-2 bg-surface-0 border border-surface-200 rounded-xl shadow-float z-50 overflow-hidden">
+            {searchResults.length === 0 ? (
+              <div className="py-6 text-center">
+                <Search size={18} className="text-ink-200 mx-auto mb-2" />
+                <p className="text-xs text-ink-400">Sin resultados</p>
+              </div>
+            ) : (
+              <div className="max-h-[320px] overflow-y-auto">
+                {searchResults.map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => handleSearchClick(r.id)}
+                    className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-surface-50 transition-colors border-b border-surface-100/60 last:border-0"
+                  >
+                    <span className="text-lg">{r.emoji || '📊'}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-ink-900 truncate">{r.name}</p>
+                      {r.area && <p className="text-2xs text-ink-400">{r.area}</p>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="flex-1" />
 
-      {/* Welcome */}
-      <span className="text-xs text-ink-700 font-semibold shrink-0">Bienvenido/a, {firstName}</span>
-
       {/* Notifications */}
-      <div className="relative" ref={dropRef}>
+      <div className="relative" ref={notifDropRef}>
         <button
-          onClick={() => { setOpen(!open); if (!open) loadNotifications() }}
-          className="w-8 h-8 rounded-lg bg-surface-50 flex items-center justify-center text-ink-400 hover:bg-surface-100 hover:text-ink-700 transition-all relative"
+          onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen) loadNotifications() }}
+          className="w-9 h-9 rounded-xl border border-surface-200 bg-surface-50 flex items-center justify-center text-ink-400 hover:bg-surface-100 hover:text-ink-700 transition-all relative"
         >
-          <Bell size={15} />
+          <Bell size={16} strokeWidth={1.8} />
           {unread > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-brand-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-5 px-1 bg-brand-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
               {unread > 9 ? '9+' : unread}
             </span>
           )}
         </button>
 
-        {/* Dropdown */}
-        {open && (
-          <div className="absolute right-0 top-full mt-2 w-[380px] bg-surface-0 border border-surface-200 rounded-2xl shadow-float z-50 overflow-hidden">
+        {/* Notifications Dropdown */}
+        {notifOpen && (
+          <div className="absolute right-0 top-full mt-2 w-[400px] bg-surface-0 border border-surface-200 rounded-2xl shadow-float z-50 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-surface-100">
               <div className="flex items-center gap-2">
@@ -208,14 +294,14 @@ export function TopBar({ onOpenUserMenu }: TopBarProps) {
               })}
             </div>
 
-            {/* Footer - Ver todas */}
+            {/* Footer */}
             {notifications.length > 0 && (
               <div className="border-t border-surface-100 px-4 py-2.5">
                 <button
-                  onClick={() => { setActiveTab('notificaciones'); setOpen(false) }}
+                  onClick={() => { setActiveTab('notificaciones'); setNotifOpen(false) }}
                   className="w-full text-center text-xs font-semibold text-brand-600 hover:text-brand-700 transition-colors"
                 >
-                  Ver todas las notificaciones
+                  Ver todas
                 </button>
               </div>
             )}
@@ -223,11 +309,12 @@ export function TopBar({ onOpenUserMenu }: TopBarProps) {
         )}
       </div>
 
+      {/* Settings */}
       <button
         onClick={onOpenUserMenu}
-        className="w-8 h-8 rounded-lg bg-surface-50 flex items-center justify-center text-ink-400 hover:bg-surface-100 hover:text-ink-700 transition-all"
+        className="w-9 h-9 rounded-xl border border-surface-200 bg-surface-50 flex items-center justify-center text-ink-400 hover:bg-surface-100 hover:text-ink-700 transition-all"
       >
-        <Settings size={15} />
+        <Settings size={16} strokeWidth={1.8} />
       </button>
     </header>
   )
