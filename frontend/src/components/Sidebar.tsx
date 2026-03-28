@@ -3,7 +3,7 @@ import gsap from 'gsap'
 import {
   LayoutDashboard, Box, Columns3, FunctionSquare, Database, FileText,
   ChevronLeft, ChevronRight, Plus, Upload, Menu, X, Search, ChevronDown,
-  Filter, Check, Bell, BookOpen,
+  Filter, Check, Bell, BookOpen, Home,
 } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 
@@ -175,13 +175,39 @@ export function Sidebar({ onOpenJsonUpload, onOpenCreateModal, onOpenUserMenu, c
 
       {/* Collapsed: icon-only new button */}
       {collapsed && (
-        <div className="px-3 pt-2 pb-3">
+        <div className="px-3 pt-2 pb-3 space-y-1.5">
+          <button
+            onClick={() => { setActiveId(null); setMobileOpen(false) }}
+            className="w-full h-9 rounded-lg bg-surface-100 text-ink-400 hover:bg-brand-50 hover:text-brand-600 transition-all flex items-center justify-center"
+            title="Home Dashboard"
+          >
+            <Home size={18} />
+          </button>
           <button
             onClick={onOpenCreateModal}
             className="btn-primary w-full justify-center px-0"
             title="Nuevo Reporte"
           >
             <Plus size={18} />
+          </button>
+        </div>
+      )}
+
+      {/* Home Dashboard button (expanded) */}
+      {!collapsed && (
+        <div className="px-3 pt-2 pb-2">
+          <button
+            onClick={() => { setActiveId(null); setMobileOpen(false) }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all border-l-[3px] mb-0.5 ${
+              activeId === null
+                ? 'bg-brand-50 text-brand-700 border-brand-500'
+                : 'text-ink-500 hover:bg-surface-50 hover:text-ink-700 border-transparent'
+            }`}
+          >
+            <Home size={16} className="shrink-0" />
+            <span className={`text-[12px] font-medium`}>
+              Home
+            </span>
           </button>
         </div>
       )}
