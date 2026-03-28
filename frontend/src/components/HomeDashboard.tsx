@@ -4,8 +4,8 @@ import { useStore } from '@/store/useStore'
 import { apiFetch } from '@/api/client'
 import {
   FileText, CheckCircle, Clock, Layers, TrendingUp, TrendingDown,
-  Activity, ArrowUpRight,
-  BarChart3, Users, User, Search
+  Activity, ArrowUpRight, AlertCircle, Zap, Shield,
+  BarChart3, Users, User, Search, CheckSquare, AlertTriangle
 } from 'lucide-react'
 import { EstadoBadge } from '@/components/ui/Badge'
 import * as d3 from 'd3'
@@ -61,6 +61,11 @@ function relativeTime(isoDate: string): string {
   return then.toLocaleDateString('es-MX')
 }
 
+function getInitials(name?: string): string {
+  if (!name) return '?'
+  return name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
+}
+
 export function HomeDashboard() {
   const store = useStore()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -76,7 +81,7 @@ export function HomeDashboard() {
 
         if (store.user?.role === 'admin') {
           try {
-            const logData = await apiFetch<AuditLog>('/audit-log?limit=8')
+            const logData = await apiFetch<AuditLog>('/audit-log?limit=12')
             setAuditLog(logData)
           } catch {
             // Graceful fallback for non-admin
@@ -124,6 +129,11 @@ export function HomeDashboard() {
   const enDesarrollo = statsData.by_estado.desarrollo || 0
   const deprecado = statsData.by_estado.deprecado || 0
 
+  // Simulated contributors from audit log
+  const contributors = auditLog?.items
+    ? [...new Map(auditLog.items.map(item => [item.user_name, item.user_name])).values()].slice(0, 5)
+    : []
+
   return (
     <div ref={containerRef} className="p-4 lg:p-6 space-y-6">
       {/* Welcome Banner — Compacto y elegante */}
@@ -165,14 +175,44 @@ export function HomeDashboard() {
         />
       </div>
 
+      {/* Quick Stats Row — Salud del Sistema */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4">
+        <HealthCard
+          icon={CheckSquare}
+          label="Completitud"
+          value={`${Math.round((statsData.total_reportes / Math.max(statsData.total_reportes + 5, 1)) * 100)}%`}
+          status="excellent"
+        />
+        <HealthCard
+          icon={Zap}
+          label="Actividad"
+          value={`${auditLog?.items.length || 0} cambios`}
+          status="active"
+        />
+        <HealthCard
+          icon={Shield}
+          label="Estado"
+          value="Operacional"
+          status="healthy"
+        />
+      </div>
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ChartCard title="Reportes por Dirección" data={statsData.by_direccion} type="bar" />
         <ChartCard title="Distribución por Estado" data={statsData.by_estado} type="donut" />
       </div>
 
-      {/* Recent Reports */}
-      <RecentReports reportes={store.reportes} />
+      {/* Two Column Section: Recientes + Documentación Pendiente */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <RecentReports reportes={store.reportes} />
+        <DocumentationStatus reportes={store.reportes} />
+      </div>
+
+      {/* Contributors Section */}
+      {contributors.length > 0 && (
+        <ContributorsSection contributors={contributors} logs={auditLog?.items || []} />
+      )}
 
       {/* Activity Feed */}
       {store.user?.role === 'admin' && auditLog && (
@@ -300,6 +340,41 @@ function KPICard({
       <p className="text-2xs text-ink-400 uppercase tracking-wider font-semibold leading-tight">
         {label}
       </p>
+    </div>
+  )
+}
+
+function HealthCard({
+  icon: Icon,
+  label,
+  value,
+  status,
+}: {
+  icon: React.ElementType
+  label: string
+  value: string
+  status: 'excellent' | 'active' | 'healthy'
+}) {
+  const statusColors = {
+    excellent: { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: 'text-emerald-600', dot: 'bg-emerald-500' },
+    active: { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'text-blue-600', dot: 'bg-blue-500' },
+    healthy: { bg: 'bg-green-50', border: 'border-green-200', icon: 'text-green-600', dot: 'bg-green-500' },
+  }
+
+  const colors = statusColors[status]
+
+  return (
+    <div className={`card border ${colors.border} ${colors.bg} p-4 flex items-center gap-3`}>
+      <div className={`w-10 h-10 rounded-lg ${colors.bg} flex items-center justify-center ${colors.icon}`}>
+        <Icon size={18} strokeWidth={2} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-2xs text-ink-400 uppercase tracking-wider font-semibold">{label}</p>
+        <p className="text-sm font-bold text-ink-900 flex items-center gap-2 mt-0.5">
+          <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
+          {value}
+        </p>
+      </div>
     </div>
   )
 }
@@ -565,18 +640,111 @@ function RecentReports({ reportes }: { reportes: any[] }) {
   )
 }
 
-function ActivityFeed({ logs }: { logs: any[] }) {
+function DocumentationStatus({ reportes }: { reportes: any[] }) {
+  // Calcular reportes incompletos (sin descripción o sin tablas)
+  const incomplete = reportes.filter(r => !r.desc || !r.tables || r.tables.length === 0).slice(0, 5)
+  const completeness = Math.round(((reportes.length - incomplete.length) / Math.max(reportes.length, 1)) * 100)
+
+  return (
+    <div className="card">
+      <div className="px-5 py-4 border-b border-surface-100 flex items-center gap-2">
+        <AlertTriangle size={18} className="text-amber-500" />
+        <h3 className="text-sm font-bold text-ink-900">Documentación Pendiente</h3>
+        <span className="text-2xs text-ink-300 ml-auto">{incomplete.length} reportes</span>
+      </div>
+      <div className="p-5 space-y-3">
+        {incomplete.length === 0 ? (
+          <div className="py-6 text-center">
+            <CheckCircle size={24} className="text-emerald-500 mx-auto mb-2" />
+            <p className="text-xs font-semibold text-ink-700">¡Todo documentado!</p>
+            <p className="text-2xs text-ink-400 mt-1">{completeness}% completitud</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="text-2xs font-semibold text-ink-600 uppercase">Completitud General</span>
+              <span className="text-sm font-bold text-amber-600">{completeness}%</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-surface-100 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all"
+                style={{ width: `${completeness}%` }}
+              />
+            </div>
+
+            <div className="pt-2 space-y-2">
+              {incomplete.map((r, i) => (
+                <div key={i} className="flex items-center gap-2 p-2.5 bg-amber-50 rounded-lg border border-amber-100">
+                  <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-ink-900 truncate">{r.name}</p>
+                    <p className="text-2xs text-amber-700">Falta documentación</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ContributorsSection({ contributors, logs }: { contributors: string[]; logs: any[] }) {
+  const colors = ['bg-brand-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-teal-500']
+  const recentLogs = logs.slice(0, 5)
+
   return (
     <div className="card">
       <div className="px-5 py-4 border-b border-surface-100 flex items-center gap-2">
         <Users size={18} className="text-ink-500" />
-        <h3 className="text-sm font-bold text-ink-900">Actividad Reciente</h3>
-        <span className="text-2xs text-ink-300 ml-auto">últimas 8</span>
+        <h3 className="text-sm font-bold text-ink-900">Contribuidores Activos</h3>
+        <span className="text-2xs text-ink-300 ml-auto">{contributors.length} usuarios</span>
+      </div>
+      <div className="p-5">
+        <div className="flex items-center gap-2 mb-4">
+          {contributors.map((name, i) => (
+            <div
+              key={name}
+              className={`w-8 h-8 rounded-full ${colors[i % colors.length]} flex items-center justify-center text-white text-2xs font-bold`}
+              title={name}
+            >
+              {getInitials(name)}
+            </div>
+          ))}
+        </div>
+
+        {/* Activity summary */}
+        <div className="space-y-2">
+          {recentLogs.map((log, i) => {
+            const actionColor = ACTION_COLORS[log.action] || '#6b7280'
+            return (
+              <div key={i} className="flex items-start gap-2 text-2xs">
+                <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: actionColor }} />
+                <p className="text-ink-700">
+                  <span className="font-semibold">{log.user_name}</span> {ACTION_LABELS[log.action] || 'modificó'} <span className="text-ink-500 font-mono">{log.target_id}</span>
+                </p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ActivityFeed({ logs }: { logs: any[] }) {
+  return (
+    <div className="card">
+      <div className="px-5 py-4 border-b border-surface-100 flex items-center gap-2">
+        <Activity size={18} className="text-ink-500" />
+        <h3 className="text-sm font-bold text-ink-900">Historial Completo</h3>
+        <span className="text-2xs text-ink-300 ml-auto">últimas {logs.length}</span>
       </div>
 
       {/* Timeline */}
       <div className="p-5 space-y-3">
-        {logs.map((log, i) => {
+        {logs.slice(0, 10).map((log, i) => {
           const dotColor = ACTION_COLORS[log.action] || '#6b7280'
 
           return (
