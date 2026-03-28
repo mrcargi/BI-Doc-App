@@ -3,6 +3,7 @@ import gsap from 'gsap'
 import { useStore } from '@/store/useStore'
 import { apiFetchBlob } from '@/api/client'
 import { Download, Pencil, Trash2 } from 'lucide-react'
+import { HomeDashboard } from '@/components/HomeDashboard'
 import { TabResumen } from '@/components/tabs/TabResumen'
 import { TabModelo } from '@/components/tabs/TabModelo'
 import { TabColumnas } from '@/components/tabs/TabColumnas'
@@ -61,13 +62,7 @@ export function DocView({ onEdit, onDelete }: DocViewProps) {
   }
 
   if (!doc) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 p-10 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-surface-100 flex items-center justify-center text-ink-300 text-2xl mb-2">&empty;</div>
-        <h2 className="text-lg font-semibold text-ink-700">Selecciona un reporte</h2>
-        <p className="text-ink-400 max-w-xs text-[13px]">Elige un reporte del panel izquierdo o sube una nueva documentacion.</p>
-      </div>
-    )
+    return <HomeDashboard />
   }
 
   return (

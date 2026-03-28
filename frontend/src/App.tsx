@@ -54,9 +54,6 @@ export function App() {
     ])
     setReportes(rData.items)
     setAreas(aData.items)
-    if (rData.items.length > 0 && !activeId) {
-      setActiveId(rData.items[0].id)
-    }
   }
 
   // After login, load data
