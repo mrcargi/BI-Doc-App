@@ -471,18 +471,32 @@ def sync_areas_from_json():
     conn.close()
 
 def ensure_admin_exists():
-    """Create default admin user if no users exist."""
+    """Create or update default admin user."""
     conn = get_db()
     count = conn.execute("SELECT COUNT(*) as c FROM users").fetchone()['c']
-    conn.close()
+
+    default_email = os.environ.get("ADMIN_DEFAULT_EMAIL", "admin@nadro.com")
+    default_pw = os.environ.get("ADMIN_DEFAULT_PASSWORD")
+
     if count == 0:
-        default_pw = os.environ.get("ADMIN_DEFAULT_PASSWORD")
+        # Create new admin if no users exist
         if not default_pw:
             default_pw = secrets.token_urlsafe(16)
             print(f"\n⚠️  ADMIN PASSWORD (SAVE THIS): {default_pw}\n")
-        default_email = os.environ.get("ADMIN_DEFAULT_EMAIL", "admin@nadro.com")
         create_user(default_email, default_pw, 'Administrador', 'admin')
         print(f"✓ Usuario admin creado: {default_email}\n")
+    elif default_pw:
+        # If admin password is set in env, update existing admin user
+        admin = conn.execute("SELECT id FROM users WHERE role = 'admin' LIMIT 1").fetchone()
+        if admin:
+            conn.execute(
+                "UPDATE users SET password_hash = ? WHERE id = ?",
+                (hash_password(default_pw), admin['id'])
+            )
+            conn.commit()
+            print(f"✓ Contraseña del admin actualizada\n")
+
+    conn.close()
 
 def bootstrap():
     """Initialize everything."""
