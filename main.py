@@ -3,7 +3,11 @@ from pathlib import Path
 
 # Load .env variables BEFORE importing app modules
 from dotenv import load_dotenv
-load_dotenv()
+
+# Load .env from project root
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path, override=True)
+print(f"📦 Loaded .env from: {env_path}")
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
