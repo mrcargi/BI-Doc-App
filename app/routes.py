@@ -351,6 +351,22 @@ def delete_area(area_id: str, admin=Depends(require_admin)):
 
 # ═══ ADMIN RESET (temporary) ═══════════════════════════════════
 import os
+@router.get("/auth/debug", summary="Debug endpoint")
+def debug_auth():
+    """Debug endpoint to check admin user status."""
+    admin_email = os.environ.get("ADMIN_DEFAULT_EMAIL", "admin@nadro.com")
+    user = db.get_user_by_email(admin_email)
+    if not user:
+        return {"found": False, "email": admin_email, "message": "User not found"}
+    return {
+        "found": True,
+        "email": user.get('email'),
+        "is_active": user.get('is_active'),
+        "role": user.get('role'),
+        "id": user.get('id'),
+        "password_hash_length": len(user.get('password_hash', ''))
+    }
+
 @router.post("/auth/reset-admin", summary="Reset admin password (temporary)")
 def reset_admin():
     """Temporary endpoint to reset admin password from environment variables."""
