@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LogOut, Users, Lock, Moon, Sun } from 'lucide-react'
+import { LogOut, Users, Lock, Moon, Sun, User } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { useStore } from '@/store/useStore'
 import { apiFetch } from '@/api/client'
@@ -33,7 +33,7 @@ export function UserMenuModal({ open, onClose, onOpenUsers }: Props) {
     <Modal open={open} onClose={onClose} maxWidth="max-w-[460px]">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-200 to-brand-400 flex items-center justify-center">
-          <span className="text-brand-900 text-xs font-bold">{(user?.name || 'U').slice(0, 2).toUpperCase()}</span>
+          <User size={18} className="text-brand-900" />
         </div>
         <div>
           <h2 className="text-sm font-bold text-ink-900">{user?.name}</h2>

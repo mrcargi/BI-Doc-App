@@ -52,7 +52,7 @@ export function LoginScreen() {
         setError('Invalid email or password')
         return
       }
-      if (!data.token) {
+      if (!data.user) {
         setError('Authentication failed. Please try again.')
         return
       }
@@ -160,7 +160,7 @@ export function LoginScreen() {
       })
 
       overlay.remove()
-      login(data.token, data.user)
+      login('', data.user) // Token is in httpOnly cookie, not needed here
     } catch (err) {
       setError('Error de conexion: ' + (err as Error).message)
     } finally {

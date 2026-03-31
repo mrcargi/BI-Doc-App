@@ -229,10 +229,22 @@ function KpiCard({
   accentColor: string
   badge?: { text: string; color: string }
 }) {
+  const [isHovered, setIsHovered] = useState(false)
+
   return (
     <div
-      className="card p-4 hover:shadow-card transition-all"
-      style={{ borderTopColor: accentColor, borderTopWidth: '2px' }}
+      className="rounded-2xl bg-surface-0 p-4 transition-all cursor-pointer"
+      style={{
+        border: '1.5px solid rgba(0,0,0,0.07)',
+        borderTopWidth: isHovered ? '3px' : '2px',
+        borderTopColor: accentColor,
+        borderColor: isHovered ? accentColor : 'rgba(0,0,0,0.07)',
+        boxShadow: isHovered
+          ? `0 0 0 3px ${accentColor}15, 0 4px 24px ${accentColor}30`
+          : '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)'
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <div className="flex items-start justify-between mb-3">
         <div
@@ -386,11 +398,15 @@ function StateDistributionChart({ data }: { data: Record<string, number> }) {
       .attr('d', (d: any) => arc(d))
 
     // Center label
+    const isDark = document.documentElement.classList.contains('dark')
+    const textColor = isDark ? '#f5f5f5' : '#111827'
+    const labelColor = isDark ? '#d1d5db' : '#9ca3af'
+
     g.append('text').attr('text-anchor', 'middle').attr('dy', '-0.2em')
-      .attr('font-size', '22px').attr('font-weight', '800').attr('fill', '#111827')
+      .attr('font-size', '22px').attr('font-weight', '800').attr('fill', textColor)
       .text(total)
     g.append('text').attr('text-anchor', 'middle').attr('dy', '1.2em')
-      .attr('font-size', '9px').attr('letter-spacing', '0.08em').attr('fill', '#9ca3af')
+      .attr('font-size', '9px').attr('letter-spacing', '0.08em').attr('fill', labelColor)
       .text('REPORTES')
 
     // Legend — right side of donut
@@ -523,16 +539,16 @@ function ReportsInventory({ reportes }: { reportes: any[] }) {
             {reportes.length} reportes
           </span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-2xs text-ink-400 mr-1.5">Ordenar:</span>
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-2xs text-ink-400 dark:text-ink-300 mr-1.5">Ordenar:</span>
           {(['name', 'area', 'date'] as const).map(s => (
             <button
               key={s}
               onClick={() => setSortBy(s)}
-              className={`text-2xs font-medium px-2.5 py-1 rounded transition-all ${
+              className={`text-2xs font-medium px-2.5 py-1 rounded transition-all whitespace-nowrap ${
                 sortBy === s
-                  ? 'bg-ink-900 text-white'
-                  : 'text-ink-500 hover:bg-surface-100'
+                  ? 'bg-ink-900 dark:bg-ink-700 text-white'
+                  : 'text-ink-500 dark:text-ink-400 hover:bg-surface-100 dark:hover:bg-surface-200'
               }`}
             >
               {s === 'name' ? 'Nombre' : s === 'area' ? 'Workspace' : 'Actualización'}

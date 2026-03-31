@@ -142,6 +142,8 @@
            inline-flex items-center gap-2 shadow-soft;
     @apply hover:bg-surface-50 hover:shadow-card hover:border-surface-300;
     @apply active:scale-[0.98];
+    @apply dark:bg-surface-100 dark:border-surface-200 dark:text-ink-300;
+    @apply dark:hover:bg-surface-200 dark:hover:border-surface-300 dark:hover:shadow-card;
   }
 
   .btn-primary {

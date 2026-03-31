@@ -58,10 +58,14 @@ export function TabPdf({ doc }: { doc: Reporte }) {
 
   return (
     <div
-      className="card border-2 border-dashed border-surface-300 p-12 text-center cursor-pointer transition-all hover:border-brand-400 hover:bg-brand-50/30 relative group"
-      onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('!border-brand-500', '!bg-brand-50/50') }}
-      onDragLeave={e => { e.currentTarget.classList.remove('!border-brand-500', '!bg-brand-50/50') }}
-      onDrop={e => { e.preventDefault(); e.currentTarget.classList.remove('!border-brand-500', '!bg-brand-50/50'); const f = e.dataTransfer.files[0]; if (f) uploadPdf(f) }}
+      className="card border-2 border-dashed p-12 text-center cursor-pointer transition-all relative group dark:border-surface-200"
+      style={{
+        borderColor: 'var(--tw-border-opacity-var, 1)',
+        '--border-color': 'rgba(214, 211, 209, 0.4)'
+      } as React.CSSProperties}
+      onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#16a34a'; e.currentTarget.style.backgroundColor = 'rgba(34, 197, 94, 0.08)' }}
+      onDragLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.backgroundColor = '' }}
+      onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = ''; e.currentTarget.style.backgroundColor = ''; const f = e.dataTransfer.files[0]; if (f) uploadPdf(f) }}
     >
       <input
         type="file"
@@ -72,11 +76,11 @@ export function TabPdf({ doc }: { doc: Reporte }) {
       <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-glow">
         <Upload size={24} className="text-white" />
       </div>
-      <h3 className="text-sm font-bold text-ink-900 mb-1">Sube el PDF del reporte</h3>
-      <p className="text-xs text-ink-400 leading-relaxed">
+      <h3 className="text-sm font-bold text-ink-900 dark:text-ink-50 mb-1">Sube el PDF del reporte</h3>
+      <p className="text-xs text-ink-400 dark:text-ink-300 leading-relaxed">
         Arrastra aqui el PDF exportado desde Power BI Desktop<br />o haz clic para seleccionarlo
       </p>
-      <p className="mt-3 text-2xs text-ink-300 font-mono">Archivo → Exportar → Exportar a PDF</p>
+      <p className="mt-3 text-2xs text-ink-300 dark:text-ink-400 font-mono">Archivo → Exportar → Exportar a PDF</p>
     </div>
   )
 }

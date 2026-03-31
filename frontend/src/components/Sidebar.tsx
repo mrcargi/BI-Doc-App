@@ -3,7 +3,7 @@ import gsap from 'gsap'
 import {
   LayoutDashboard, Box, Columns3, FunctionSquare, Database, FileText,
   ChevronLeft, ChevronRight, Plus, Upload, Menu, X, Search, ChevronDown,
-  Filter, Check, Bell, BookOpen, Home,
+  Filter, Check, Bell, BookOpen, Home, User,
 } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 
@@ -380,9 +380,7 @@ export function Sidebar({ onOpenJsonUpload, onOpenCreateModal, onOpenUserMenu, c
           className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer hover:bg-surface-100 transition-all ${collapsed ? 'justify-center px-0' : ''}`}
         >
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-200 to-brand-400 flex items-center justify-center shrink-0">
-            <span className="text-brand-900 text-[11px] font-bold">
-              {(user?.name || 'U').slice(0, 2).toUpperCase()}
-            </span>
+            <User size={16} className="text-brand-900" />
           </div>
           <div className={`transition-all duration-300 overflow-hidden ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
             <div className="text-xs font-semibold text-ink-900 whitespace-nowrap">{user?.name}</div>

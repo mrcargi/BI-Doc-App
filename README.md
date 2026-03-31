@@ -4,38 +4,14 @@ Sistema interno de gestion y documentacion de modelos semanticos Power BI. Permi
 
 ---
 
-## Arquitectura del Proyecto
+## 📚 Documentacion
 
-```
-BI-Hub/
-├── main.py                     # Servidor FastAPI (punto de entrada)
-├── requirements.txt            # Dependencias Python
-├── start.bat                   # Inicio rapido (Windows)
-│
-├── app/
-│   ├── auth.py                 # Autenticacion JWT y control de acceso
-│   ├── routes.py               # Endpoints de la API REST
-│   ├── models.py               # Modelos de datos (Pydantic)
-│   ├── database.py             # Capa de base de datos (SQLite)
-│   └── pdf_export.py           # Generacion de reportes PDF ejecutivos
-│
-├── data/
-│   └── pbidocs.db              # Base de datos SQLite
-│
-├── pdfs/                       # Archivos PDF adjuntos
-│
-├── static/
-│   └── img/                    # Recursos graficos
-│
-└── frontend/                   # Aplicacion React (Vite + TypeScript)
-    ├── src/
-    │   ├── components/         # Componentes de interfaz
-    │   ├── store/              # Estado global de la aplicacion
-    │   ├── api/                # Cliente HTTP
-    │   └── types/              # Definiciones de tipos
-    ├── tailwind.config.js      # Sistema de diseno
-    └── vite.config.ts          # Configuracion del bundler
-```
+| Documento | Proposito |
+|-----------|-----------|
+| [QUICK_START.md](QUICK_START.md) | Guia rapida de setup (Windows, Mac, Linux) |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Arquitectura tecnica detallada |
+| [SECURITY.md](SECURITY.md) | Configuracion y mejores practicas de seguridad |
+| [docs/TEAM_GUIDE.md](docs/TEAM_GUIDE.md) | Guia para documentar reportes Power BI |
 
 ---
 

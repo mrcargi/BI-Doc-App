@@ -1,8 +1,26 @@
+# Python
 venv/
+.venv/
+env/
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
+
+# Node.js
 node_modules/
+frontend/dist/
+frontend/node_modules/
+frontend/tsconfig.tsbuildinfo
+
+# Environment variables
 .env
+.env.local
+.env.*.local
 
 # Database and data files
 data/pbidocs.db
@@ -16,5 +34,32 @@ data/*.json
 pdfs/
 
 # Build outputs
-frontend/dist/
 static-react/assets/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Temporary files
+*.tmp
+*.bak
+.temp/
+temp/
+
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
