@@ -375,20 +375,13 @@ def reset_admin():
         raise HTTPException(400, detail="ADMIN_DEFAULT_PASSWORD not set")
 
     admin_email = os.environ.get("ADMIN_DEFAULT_EMAIL", "admin@nadro.com")
-    conn = db.get_db()
 
-    # Try to find and update existing admin
-    admin_user = conn.execute("SELECT id FROM users WHERE role = 'admin' LIMIT 1").fetchone()
-    if admin_user:
-        conn.execute(
-            "UPDATE users SET password_hash = ?, email = ? WHERE id = ?",
-            (db.hash_password(admin_pw), admin_email, admin_user['id'])
-        )
-        conn.commit()
-        conn.close()
-        return {"ok": True, "message": f"Admin reset: {admin_email}", "password": admin_pw}
+    # Always force update the existing admin user
+    user = db.get_user_by_email(admin_email)
+    if user:
+        db.update_user_password(user['id'], admin_pw)
+        return {"ok": True, "message": f"Admin password updated: {admin_email}", "password": admin_pw}
 
     # Create if doesn't exist
-    conn.close()
     db.create_user(admin_email, admin_pw, 'Administrador', 'admin')
     return {"ok": True, "message": f"Admin created: {admin_email}", "password": admin_pw}
