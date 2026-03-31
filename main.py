@@ -60,12 +60,14 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(router, prefix="/api")
 
 # ── Static files ──
-# Legacy static (logos, etc.) - only mount if directory exists
-if (BASE_DIR / "static").exists():
-    app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+# Create directories if they don't exist
+(BASE_DIR / "static").mkdir(exist_ok=True)
+(BASE_DIR / "pdfs").mkdir(exist_ok=True)
+REACT_DIR.mkdir(exist_ok=True)
 
-if (BASE_DIR / "pdfs").exists():
-    app.mount("/pdfs", StaticFiles(directory=BASE_DIR / "pdfs"), name="pdfs")
+# Mount static files
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+app.mount("/pdfs", StaticFiles(directory=BASE_DIR / "pdfs"), name="pdfs")
 
 # React build assets
 if (REACT_DIR / "assets").exists():
