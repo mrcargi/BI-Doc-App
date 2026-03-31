@@ -177,7 +177,7 @@ export function Sidebar({ onOpenJsonUpload, onOpenCreateModal, onOpenUserMenu, c
       {collapsed && (
         <div className="px-3 pt-2 pb-3 space-y-1.5">
           <button
-            onClick={() => { setActiveId(null); setMobileOpen(false) }}
+            onClick={() => { setActiveId(null); setActiveTab('resumen'); setMobileOpen(false) }}
             className="w-full h-9 rounded-lg bg-surface-100 text-ink-400 hover:bg-brand-50 hover:text-brand-600 transition-all flex items-center justify-center"
             title="Home Dashboard"
           >
@@ -197,7 +197,7 @@ export function Sidebar({ onOpenJsonUpload, onOpenCreateModal, onOpenUserMenu, c
       {!collapsed && (
         <div className="px-3 pt-2 pb-2">
           <button
-            onClick={() => { setActiveId(null); setMobileOpen(false) }}
+            onClick={() => { setActiveId(null); setActiveTab('resumen'); setMobileOpen(false) }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all border-l-[3px] mb-0.5 ${
               activeId === null
                 ? 'bg-brand-50 text-brand-700 border-brand-500'

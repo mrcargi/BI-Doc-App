@@ -3,9 +3,8 @@ import gsap from 'gsap'
 import { useStore } from '@/store/useStore'
 import { apiFetch } from '@/api/client'
 import {
-  FileText, CheckCircle, Clock, Layers, TrendingUp, TrendingDown,
-  Activity, ArrowUpRight, AlertCircle, Zap, Shield,
-  BarChart3, Users, User, Search, CheckSquare, AlertTriangle
+  FileText, Download, Filter, BarChart3, CheckCircle, Eye,
+  Clock, AlertCircle, Activity, ChevronRight, Lock, TrendingUp,
 } from 'lucide-react'
 import { EstadoBadge } from '@/components/ui/Badge'
 import * as d3 from 'd3'
@@ -47,13 +46,13 @@ const ACTION_COLORS: Record<string, string> = {
 }
 
 function relativeTime(isoDate: string): string {
+  if (!isoDate) return '—'
   const now = new Date()
   const then = new Date(isoDate)
   const diff = now.getTime() - then.getTime()
   const mins = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
-
   if (mins < 1) return 'hace poco'
   if (mins < 60) return `hace ${mins}m`
   if (hours < 24) return `hace ${hours}h`
@@ -61,10 +60,7 @@ function relativeTime(isoDate: string): string {
   return then.toLocaleDateString('es-MX')
 }
 
-function getInitials(name?: string): string {
-  if (!name) return '?'
-  return name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
-}
+/* ════════════════════════════════════════════════════════════════════════ */
 
 export function HomeDashboard() {
   const store = useStore()
@@ -78,14 +74,11 @@ export function HomeDashboard() {
       try {
         const statsData = await apiFetch<StatsData>('/stats')
         setStats(statsData)
-
         if (store.user?.role === 'admin') {
           try {
-            const logData = await apiFetch<AuditLog>('/audit-log?limit=12')
+            const logData = await apiFetch<AuditLog>('/audit-log?limit=15')
             setAuditLog(logData)
-          } catch {
-            // Graceful fallback for non-admin
-          }
+          } catch { /* graceful */ }
         }
       } catch (err) {
         console.error('Failed to fetch dashboard data:', err)
@@ -93,687 +86,606 @@ export function HomeDashboard() {
         setLoading(false)
       }
     }
-
     fetchData()
   }, [store.user?.role])
 
-  // GSAP stagger animation on mount
   useEffect(() => {
     if (!containerRef.current) return
-    const children = containerRef.current.children
     gsap.fromTo(
-      children,
-      { y: 16, opacity: 0 },
-      { y: 0, opacity: 1, stagger: 0.06, duration: 0.4, ease: 'power2.out' },
+      containerRef.current.children,
+      { y: 12, opacity: 0 },
+      { y: 0, opacity: 1, stagger: 0.05, duration: 0.35, ease: 'power2.out' },
     )
   }, [])
 
   if (loading) {
     return (
       <div className="p-4 lg:p-6 space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-20 rounded-2xl bg-surface-100 animate-pulse" />
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-14 rounded-xl bg-surface-100 animate-pulse" />
         ))}
       </div>
     )
   }
 
-  const statsData = stats || {
-    total_reportes: 0,
-    total_areas: 0,
-    by_estado: { activo: 0, desarrollo: 0, deprecado: 0 },
-    by_direccion: {},
-  }
+  const sd = stats || { total_reportes: 0, total_areas: 0, by_estado: {}, by_direccion: {} }
+  const activos = sd.by_estado.activo || 0
+  const enDesarrollo = sd.by_estado.desarrollo || 0
+  const deprecated = sd.by_estado.deprecado || 0
+  const total = activos + enDesarrollo + deprecated
+  const adoptionRate = total > 0 ? Math.round((activos / total) * 100) : 0
 
-  const activos = statsData.by_estado.activo || 0
-  const enDesarrollo = statsData.by_estado.desarrollo || 0
-  const deprecado = statsData.by_estado.deprecado || 0
-
-  // Simulated contributors from audit log
-  const contributors = auditLog?.items
-    ? [...new Map(auditLog.items.map(item => [item.user_name, item.user_name])).values()].slice(0, 5)
-    : []
+  // count updated in last 30 days
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000
+  const recentCount = store.reportes.filter(
+    r => r.updatedAt && new Date(r.updatedAt).getTime() > thirtyDaysAgo
+  ).length
 
   return (
-    <div ref={containerRef} className="p-4 lg:p-6 space-y-6">
-      {/* Welcome Banner — Compacto y elegante */}
-      <WelcomeBanner user={store.user?.name} activos={activos} areas={statsData.total_areas} />
+    <div ref={containerRef} className="p-4 lg:p-6 space-y-5">
 
-      {/* KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          icon={FileText}
-          label="Reportes Documentados"
-          value={statsData.total_reportes}
-          color="#16a34a"
-          trend="+8%"
-          borderColor="border-t-brand-600"
-        />
-        <KPICard
-          icon={CheckCircle}
-          label="Activos"
+      {/* ── 1. Compact Executive Header ── */}
+      <CompactHeader />
+
+      {/* ── 2. KPI Row ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard
           value={activos}
-          color="#10b981"
-          trend="+5%"
-          borderColor="border-t-emerald-500"
+          label="Reportes Activos"
+          context={recentCount > 0 ? `+${recentCount} publicados este mes` : 'Operacionales'}
+          icon={FileText}
+          accentColor="#16a34a"
+          badge={{ text: 'Operacional', color: '#16a34a' }}
         />
-        <KPICard
-          icon={Clock}
-          label="En Desarrollo"
-          value={enDesarrollo}
-          color="#d97706"
-          trend={enDesarrollo > 5 ? "-2%" : "0%"}
-          borderColor="border-t-amber-500"
-        />
-        <KPICard
-          icon={Layers}
+        <KpiCard
+          value={sd.total_areas}
           label="Áreas Cubiertas"
-          value={statsData.total_areas}
-          color="#3b82f6"
-          trend="+1"
-          borderColor="border-t-blue-500"
+          context={`Tasa de adopción: ${adoptionRate}%`}
+          icon={BarChart3}
+          accentColor="#2563eb"
+        />
+        <KpiCard
+          value={enDesarrollo}
+          label="En Desarrollo"
+          context="Pendientes de publicar"
+          icon={Clock}
+          accentColor="#d97706"
+        />
+        <KpiCard
+          value={deprecated}
+          label="Deprecados"
+          context="Requieren revisión"
+          icon={Lock}
+          accentColor="#9ca3af"
         />
       </div>
 
-      {/* Quick Stats Row — Salud del Sistema */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-4">
-        <HealthCard
-          icon={CheckSquare}
-          label="Completitud"
-          value={`${Math.round((statsData.total_reportes / Math.max(statsData.total_reportes + 5, 1)) * 100)}%`}
-          status="excellent"
-        />
-        <HealthCard
-          icon={Zap}
-          label="Actividad"
-          value={`${auditLog?.items.length || 0} cambios`}
-          status="active"
-        />
-        <HealthCard
-          icon={Shield}
-          label="Estado"
-          value="Operacional"
-          status="healthy"
-        />
-      </div>
-
-      {/* Charts Row */}
+      {/* ── 3. Charts Row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="Reportes por Dirección" data={statsData.by_direccion} type="bar" />
-        <ChartCard title="Distribución por Estado" data={statsData.by_estado} type="donut" />
+        <ReportsByWorkspace data={sd.by_direccion} />
+        <StateDistributionChart data={sd.by_estado} />
       </div>
 
-      {/* Two Column Section: Recientes + Documentación Pendiente */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <RecentReports reportes={store.reportes} />
-        <DocumentationStatus reportes={store.reportes} />
-      </div>
+      {/* ── 4. Recently Updated Table ── */}
+      <RecentlyUpdated reportes={store.reportes} />
 
-      {/* Contributors Section */}
-      {contributors.length > 0 && (
-        <ContributorsSection contributors={contributors} logs={auditLog?.items || []} />
+      {/* ── 5. Full Reports Inventory ── */}
+      <ReportsInventory reportes={store.reportes} />
+
+      {/* ── 6. Bottom: Action Items + Activity Log (admin only) ── */}
+      {store.user?.role === 'admin' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <ActionItems reportes={store.reportes} />
+          <div className="lg:col-span-2">
+            {auditLog && <RecentActivity logs={auditLog.items} />}
+          </div>
+        </div>
       )}
 
-      {/* Activity Feed */}
-      {store.user?.role === 'admin' && auditLog && (
-        <ActivityFeed logs={auditLog.items} />
-      )}
     </div>
   )
 }
 
-/* ════════════════════════════════════════════════════════════════════ */
+/* ─── Compact Header ─────────────────────────────────────────────────── */
 
-function WelcomeBanner({ user, activos, areas }: { user?: string; activos: number; areas: number }) {
-  const today = new Date().toLocaleDateString('es-MX', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric'
-  })
-
+function CompactHeader() {
   return (
-    <div
-      className="relative overflow-hidden rounded-2xl p-5"
-      style={{
-        background: 'linear-gradient(160deg, #0f4c2a 0%, #166534 70%, #1a7a40 100%)',
-      }}
-    >
-      {/* Subtle dot grid background */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.04]">
-        <svg width="100%" height="100%" className="absolute">
-          <defs>
-            <pattern id="dots" x="16" y="16" width="32" height="32" patternUnits="userSpaceOnUse">
-              <circle cx="2" cy="2" r="1.5" fill="white" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#dots)" />
-        </svg>
-      </div>
-
-      <div className="relative z-10 flex items-start justify-between gap-6">
-        {/* Left: Greeting + Date */}
-        <div>
-          <h1 className="text-xl font-bold text-white">
-            ¡Bienvenido, {user || 'Administrador'}!
-          </h1>
-          <p className="text-2xs text-white/50 mt-1 font-medium uppercase tracking-wider">{today}</p>
-        </div>
-
-        {/* Right: Metric Pills */}
-        <div className="flex flex-col items-end gap-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
-            <span className="text-white/90 text-2xs font-semibold">{activos} activos</span>
-          </div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
-            <ArrowUpRight size={11} className="text-white/70" />
-            <span className="text-white/90 text-2xs font-semibold">{areas} áreas</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function KPICard({
-  icon: Icon,
-  label,
-  value,
-  color,
-  trend,
-  borderColor,
-}: {
-  icon: React.ElementType
-  label: string
-  value: number
-  color: string
-  trend: string
-  borderColor: string
-}) {
-  const valueRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!valueRef.current) return
-    gsap.to(valueRef.current, {
-      textContent: value,
-      duration: 0.8,
-      ease: 'power2.out',
-      snap: { textContent: 1 },
-    })
-  }, [value])
-
-  const isTrendPositive = trend.startsWith('+') || !trend.includes('-')
-
-  return (
-    <div className={`card p-5 flex flex-col justify-between h-full group transition-all hover:shadow-card ${borderColor} border-t-[3px]`}>
-      {/* Top right: icon */}
-      <div className="flex justify-end mb-4">
-        <div className="w-9 h-9 rounded-xl bg-surface-100 flex items-center justify-center" style={{ color }}>
-          <Icon size={18} strokeWidth={2} />
-        </div>
-      </div>
-
-      {/* Middle: value */}
+    <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-surface-100">
       <div>
-        <div
-          ref={valueRef}
-          className="text-4xl font-black leading-none mb-1"
-          style={{ color }}
-        >
-          {value}
-        </div>
-
-        {/* Trend indicator */}
-        <div className="flex items-center gap-1.5 mb-3">
-          {isTrendPositive ? (
-            <TrendingUp size={13} className="text-emerald-600" />
-          ) : (
-            <TrendingDown size={13} className="text-amber-600" />
-          )}
-          <span className={`text-2xs font-semibold ${isTrendPositive ? 'text-emerald-600' : 'text-amber-600'}`}>
-            {trend}
-          </span>
-        </div>
-      </div>
-
-      {/* Label */}
-      <p className="text-2xs text-ink-400 uppercase tracking-wider font-semibold leading-tight">
-        {label}
-      </p>
-    </div>
-  )
-}
-
-function HealthCard({
-  icon: Icon,
-  label,
-  value,
-  status,
-}: {
-  icon: React.ElementType
-  label: string
-  value: string
-  status: 'excellent' | 'active' | 'healthy'
-}) {
-  const statusColors = {
-    excellent: { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: 'text-emerald-600', dot: 'bg-emerald-500' },
-    active: { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'text-blue-600', dot: 'bg-blue-500' },
-    healthy: { bg: 'bg-green-50', border: 'border-green-200', icon: 'text-green-600', dot: 'bg-green-500' },
-  }
-
-  const colors = statusColors[status]
-
-  return (
-    <div className={`card border ${colors.border} ${colors.bg} p-4 flex items-center gap-3`}>
-      <div className={`w-10 h-10 rounded-lg ${colors.bg} flex items-center justify-center ${colors.icon}`}>
-        <Icon size={18} strokeWidth={2} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-2xs text-ink-400 uppercase tracking-wider font-semibold">{label}</p>
-        <p className="text-sm font-bold text-ink-900 flex items-center gap-2 mt-0.5">
-          <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
-          {value}
+        <h1 className="text-xl font-bold text-ink-900 leading-tight">
+          Inventario de Reportes BI
+        </h1>
+        <p className="text-xs text-ink-400 mt-0.5">
+          Gobernanza y documentación centralizada · Power BI
         </p>
       </div>
+      <div className="flex items-center gap-2">
+        <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-surface-200 text-xs font-medium text-ink-600 hover:bg-surface-50 transition-colors">
+          <Filter size={13} />
+          Filtros
+        </button>
+        <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-surface-200 text-xs font-medium text-ink-600 hover:bg-surface-50 transition-colors">
+          <Download size={13} />
+          Exportar Catálogo
+        </button>
+        <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700 transition-colors">
+          <FileText size={13} />
+          Ver Reportes
+        </button>
+      </div>
     </div>
   )
 }
 
-function ChartCard({
-  title,
-  data,
-  type,
+/* ─── KPI Card ───────────────────────────────────────────────────────── */
+
+function KpiCard({
+  value, label, context, icon: Icon, accentColor, badge,
 }: {
-  title: string
-  data: Record<string, number>
-  type: 'bar' | 'donut'
+  value: number
+  label: string
+  context: string
+  icon: React.ElementType
+  accentColor: string
+  badge?: { text: string; color: string }
 }) {
-  const containerRef = useRef<HTMLDivElement>(null)
+  return (
+    <div
+      className="card p-4 hover:shadow-card transition-all"
+      style={{ borderTopColor: accentColor, borderTopWidth: '2px' }}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center"
+          style={{ backgroundColor: `${accentColor}18` }}
+        >
+          <Icon size={15} style={{ color: accentColor }} />
+        </div>
+        {badge && (
+          <span
+            className="text-2xs font-semibold px-1.5 py-0.5 rounded"
+            style={{ color: badge.color, backgroundColor: `${badge.color}15` }}
+          >
+            {badge.text}
+          </span>
+        )}
+      </div>
+      <p className="text-3xl font-black text-ink-900 leading-none">{value}</p>
+      <p className="text-xs font-semibold text-ink-700 mt-1.5">{label}</p>
+      <div className="flex items-center gap-1 mt-0.5">
+        <TrendingUp size={10} style={{ color: accentColor }} />
+        <p className="text-2xs text-ink-400 leading-snug">{context}</p>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Bar Chart: Reports by Workspace ───────────────────────────────── */
+
+function ReportsByWorkspace({ data }: { data: Record<string, number> }) {
   const svgRef = useRef<SVGSVGElement>(null)
 
   useEffect(() => {
     if (!svgRef.current || Object.keys(data).length === 0) return
 
-    const width = 450
-    const height = 280
-
+    const W = 460, H = 210
     d3.select(svgRef.current).selectAll('*').remove()
     const svg = d3.select(svgRef.current)
 
-    if (type === 'bar') {
-      const margin = { top: 20, right: 30, bottom: 20, left: 160 }
-      const chartWidth = width - margin.left - margin.right
-      const chartHeight = height - margin.top - margin.bottom
+    const m = { top: 12, right: 40, bottom: 12, left: 145 }
+    const cw = W - m.left - m.right
+    const ch = H - m.top - m.bottom
 
-      const entries = Object.entries(data)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 8)
+    const entries = Object.entries(data).sort(([, a], [, b]) => b - a).slice(0, 7)
+    const maxVal = Math.max(...entries.map(([, v]) => v))
 
-      const maxValue = Math.max(...entries.map(([, v]) => v))
+    const yScale = d3.scaleBand().domain(entries.map(([k]) => k)).range([0, ch]).padding(0.5)
+    const xScale = d3.scaleLinear().domain([0, maxVal]).range([0, cw])
 
-      const yScale = d3.scaleBand()
-        .domain(entries.map(([k]) => k))
-        .range([0, chartHeight])
-        .padding(0.35)
+    const g = svg.append('g').attr('transform', `translate(${m.left},${m.top})`)
 
-      const xScale = d3.scaleLinear()
-        .domain([0, maxValue])
-        .range([0, chartWidth])
+    // Subtle vertical grid
+    xScale.ticks(4).forEach(t => {
+      g.append('line')
+        .attr('x1', xScale(t)).attr('x2', xScale(t))
+        .attr('y1', 0).attr('y2', ch)
+        .attr('stroke', '#f0f0f0').attr('stroke-width', 1)
+    })
 
-      const g = svg.append('g')
-        .attr('transform', `translate(${margin.left},${margin.top})`)
+    const greens = ['#0f4c2a', '#166534', '#16a34a', '#22c55e', '#4ade80', '#86efac', '#bbf7d0']
 
-      // Subtle grid lines
-      g.selectAll('line.grid')
-        .data(d3.ticks(0, maxValue, 4))
-        .enter()
-        .append('line')
-        .attr('class', 'grid')
-        .attr('x1', (d: number) => xScale(d))
-        .attr('x2', (d: number) => xScale(d))
-        .attr('y1', 0)
-        .attr('y2', chartHeight)
-        .attr('stroke', '#f0f0f0')
-        .attr('stroke-width', 1)
+    // Bars
+    g.selectAll('rect.bar')
+      .data(entries)
+      .enter().append('rect').attr('class', 'bar')
+      .attr('x', 0)
+      .attr('y', ([k]) => yScale(k) ?? 0)
+      .attr('width', 0)
+      .attr('height', yScale.bandwidth())
+      .attr('fill', (_, i) => greens[i % greens.length])
+      .attr('rx', 3)
+      .transition().duration(700)
+      .attr('width', ([, v]) => xScale(v))
 
-      // Color gradient palette
-      const colors = ['#0f4c2a', '#166534', '#16a34a', '#22c55e', '#4ade80', '#86efac', '#bbf7d0', '#dcfce7']
+    // Y-axis labels
+    g.selectAll('text.label')
+      .data(entries)
+      .enter().append('text').attr('class', 'label')
+      .attr('x', -8)
+      .attr('y', ([k]) => (yScale(k) ?? 0) + yScale.bandwidth() / 2)
+      .attr('dy', '0.35em').attr('text-anchor', 'end')
+      .attr('font-size', '12px').attr('fill', '#4b5563').attr('font-weight', '500')
+      .text(([k]) => k.length > 18 ? k.slice(0, 16) + '…' : k)
 
-      // Bars with animation
-      g.selectAll('rect')
-        .data(entries)
-        .enter()
-        .append('rect')
-        .attr('x', 0)
-        .attr('y', ([k]) => yScale(k) ?? 0)
-        .attr('width', 0)
-        .attr('height', yScale.bandwidth())
-        .attr('fill', (_, i) => colors[i % colors.length])
-        .attr('rx', 5)
-        .transition()
-        .duration(800)
-        .attr('width', ([, v]) => xScale(v))
-
-      // Labels (larger and clearer)
-      g.selectAll('text.label')
-        .data(entries)
-        .enter()
-        .append('text')
-        .attr('class', 'label')
-        .attr('x', -8)
-        .attr('y', ([k]) => (yScale(k) ?? 0) + yScale.bandwidth() / 2)
-        .attr('dy', '0.35em')
-        .attr('text-anchor', 'end')
-        .attr('font-size', '13px')
-        .attr('fill', '#6b7280')
-        .attr('font-weight', '500')
-        .text(([k]) => k)
-
-      // Values at end of bars
-      g.selectAll('text.value')
-        .data(entries)
-        .enter()
-        .append('text')
-        .attr('class', 'value')
-        .attr('x', ([, v]) => xScale(v) + 6)
-        .attr('y', ([k]) => (yScale(k) ?? 0) + yScale.bandwidth() / 2)
-        .attr('dy', '0.35em')
-        .attr('font-size', '12px')
-        .attr('font-weight', '600')
-        .attr('fill', (_, i) => colors[i % colors.length])
-        .text(([, v]) => v)
-    } else if (type === 'donut') {
-      // Donut + Legend layout
-      const donutRadius = 60
-      const donutX = 100
-      const donutY = 140
-
-      const g = svg.append('g')
-        .attr('transform', `translate(${donutX},${donutY})`)
-
-      const pie = d3.pie<[string, number]>().value(([, v]) => v)
-      const arc = d3.arc<any>()
-        .innerRadius(donutRadius * 0.65)
-        .outerRadius(donutRadius)
-
-      const colors: Record<string, string> = {
-        activo: '#16a34a',
-        desarrollo: '#d97706',
-        deprecado: '#9ca3af',
-      }
-
-      const arcs = pie(Object.entries(data))
-      const total = Object.values(data).reduce((a, b) => a + b, 0)
-
-      // Draw donut segments
-      g.selectAll('path')
-        .data(arcs as any)
-        .enter()
-        .append('path')
-        .attr('fill', (d: any) => colors[d.data[0]] || '#ccc')
-        .attr('stroke', 'white')
-        .attr('stroke-width', 2)
-        .transition()
-        .duration(900)
-        .ease(d3.easeQuadInOut)
-        .attr('d', (d: any) => arc(d))
-
-      // Center text
-      g.append('text')
-        .attr('text-anchor', 'middle')
-        .attr('dy', '-0.3em')
-        .attr('font-size', '18px')
-        .attr('font-weight', 'bold')
-        .attr('fill', '#1f2937')
-        .text(total)
-
-      g.append('text')
-        .attr('text-anchor', 'middle')
-        .attr('dy', '1em')
-        .attr('font-size', '11px')
-        .attr('fill', '#9ca3af')
-        .text('reportes')
-
-      // Legend (right side)
-      const legendX = 240
-      const items = Object.entries(data).map(([label, value]) => ({
-        label,
-        value,
-        pct: Math.round((value / total) * 100),
-        color: colors[label],
-      }))
-
-      items.forEach((item, i) => {
-        const y = 80 + i * 45
-
-        // Dot
-        svg.append('circle')
-          .attr('cx', legendX)
-          .attr('cy', y)
-          .attr('r', 4)
-          .attr('fill', item.color)
-
-        // Label
-        svg.append('text')
-          .attr('x', legendX + 12)
-          .attr('y', y)
-          .attr('dy', '0.35em')
-          .attr('font-size', '12px')
-          .attr('font-weight', '500')
-          .attr('fill', '#1f2937')
-          .text(item.label.charAt(0).toUpperCase() + item.label.slice(1))
-
-        // Value + Percentage
-        svg.append('text')
-          .attr('x', legendX + 12)
-          .attr('y', y + 14)
-          .attr('font-size', '11px')
-          .attr('fill', '#9ca3af')
-          .text(`${item.value} (${item.pct}%)`)
-      })
-    }
-  }, [data, type])
+    // Value labels
+    g.selectAll('text.val')
+      .data(entries)
+      .enter().append('text').attr('class', 'val')
+      .attr('x', ([, v]) => xScale(v) + 5)
+      .attr('y', ([k]) => (yScale(k) ?? 0) + yScale.bandwidth() / 2)
+      .attr('dy', '0.35em')
+      .attr('font-size', '11px').attr('font-weight', '600').attr('fill', '#9ca3af')
+      .text(([, v]) => v)
+  }, [data])
 
   return (
     <div className="card p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <BarChart3 size={18} className="text-ink-500" />
-        <h3 className="text-sm font-bold text-ink-900">{title}</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-sm font-bold text-ink-900">Reportes por Workspace</h3>
+          <p className="text-2xs text-ink-400 mt-0.5">Distribución por dirección / área</p>
+        </div>
+        <span className="text-2xs text-ink-300">{Object.keys(data).length} workspaces</span>
       </div>
-      <div className="flex justify-center -ml-4">
-        <svg ref={svgRef} width={450} height={280} style={{ maxWidth: '100%' }} />
-      </div>
+      <svg ref={svgRef} width={460} height={210} style={{ maxWidth: '100%' }} />
     </div>
   )
 }
 
-function RecentReports({ reportes }: { reportes: any[] }) {
+/* ─── Donut Chart: Estado de la Cartera ──────────────────────────────── */
+
+function StateDistributionChart({ data }: { data: Record<string, number> }) {
+  const svgRef = useRef<SVGSVGElement>(null)
+
+  useEffect(() => {
+    if (!svgRef.current) return
+
+    const W = 460, H = 210
+    d3.select(svgRef.current).selectAll('*').remove()
+    const svg = d3.select(svgRef.current)
+
+    const cx = 110, cy = H / 2
+    const outerR = 72, innerR = outerR * 0.73  // thin ring
+
+    const colorMap: Record<string, string> = {
+      activo: '#16a34a',
+      desarrollo: '#d97706',
+      deprecado: '#9ca3af',
+    }
+    const labelMap: Record<string, string> = {
+      activo: 'Activo',
+      desarrollo: 'En desarrollo',
+      deprecado: 'Deprecado',
+    }
+
+    const entries = Object.entries(data).filter(([, v]) => v > 0)
+    const total = entries.reduce((s, [, v]) => s + v, 0)
+
+    const pie = d3.pie<[string, number]>().value(([, v]) => v).sort(null)
+    const arc = d3.arc<any>().innerRadius(innerR).outerRadius(outerR)
+    const arcs = pie(entries)
+
+    const g = svg.append('g').attr('transform', `translate(${cx},${cy})`)
+
+    g.selectAll('path')
+      .data(arcs as any)
+      .enter().append('path')
+      .attr('fill', (d: any) => colorMap[d.data[0]] || '#e5e7eb')
+      .attr('stroke', 'white').attr('stroke-width', 2)
+      .transition().duration(800).ease(d3.easeQuadInOut)
+      .attr('d', (d: any) => arc(d))
+
+    // Center label
+    g.append('text').attr('text-anchor', 'middle').attr('dy', '-0.2em')
+      .attr('font-size', '22px').attr('font-weight', '800').attr('fill', '#111827')
+      .text(total)
+    g.append('text').attr('text-anchor', 'middle').attr('dy', '1.2em')
+      .attr('font-size', '9px').attr('letter-spacing', '0.08em').attr('fill', '#9ca3af')
+      .text('REPORTES')
+
+    // Legend — right side of donut
+    const lx = cx + outerR + 28
+    const itemH = 44
+    const startY = cy - ((entries.length - 1) * itemH) / 2
+
+    entries.forEach(([key, value], i) => {
+      const y = startY + i * itemH
+      const pct = total > 0 ? Math.round((value / total) * 100) : 0
+
+      svg.append('rect')
+        .attr('x', lx).attr('y', y - 5)
+        .attr('width', 10).attr('height', 10).attr('rx', 2)
+        .attr('fill', colorMap[key] || '#e5e7eb')
+
+      svg.append('text')
+        .attr('x', lx + 15).attr('y', y)
+        .attr('dy', '0.15em')
+        .attr('font-size', '12px').attr('font-weight', '600').attr('fill', '#374151')
+        .text(labelMap[key] || key)
+
+      svg.append('text')
+        .attr('x', lx + 15).attr('y', y + 16)
+        .attr('font-size', '11px').attr('fill', '#9ca3af')
+        .text(`${value} reportes · ${pct}%`)
+    })
+  }, [data])
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-sm font-bold text-ink-900">Estado de la Cartera</h3>
+          <p className="text-2xs text-ink-400 mt-0.5">Ciclo de vida de los reportes</p>
+        </div>
+      </div>
+      <svg ref={svgRef} width={460} height={210} style={{ maxWidth: '100%' }} />
+    </div>
+  )
+}
+
+/* ─── Recently Updated Table ─────────────────────────────────────────── */
+
+function RecentlyUpdated({ reportes }: { reportes: any[] }) {
   const { setActiveId, setActiveTab } = useStore()
 
-  const recent = reportes
+  const recent = [...reportes]
+    .filter(r => r.updatedAt)
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, 6)
 
-  if (recent.length === 0) {
-    return null
-  }
+  if (recent.length === 0) return null
 
   return (
-    <div className="card">
-      <div className="px-5 py-4 border-b border-surface-100 flex items-center gap-2">
-        <Activity size={18} className="text-ink-500" />
-        <h3 className="text-sm font-bold text-ink-900">Reportes Recientes</h3>
-        <span className="text-2xs text-ink-300 ml-auto">últimos {recent.length}</span>
+    <div className="card overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-surface-100 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <Clock size={15} className="text-ink-400" />
+          <h3 className="text-sm font-bold text-ink-900">Reportes Recién Actualizados</h3>
+        </div>
+        <span className="text-2xs text-ink-400">Última actividad</span>
       </div>
-      <div className="divide-y divide-surface-100">
-        {recent.map(r => (
-          <div
-            key={r.id}
-            onClick={() => {
-              setActiveId(r.id)
-              setActiveTab('resumen')
-            }}
-            className="px-5 py-3 flex items-center gap-3 cursor-pointer transition-all hover:bg-surface-50 group"
-          >
-            {/* Emoji */}
-            <span className="text-xl shrink-0">{r.emoji || '📊'}</span>
-
-            {/* Name + Area */}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-ink-900 group-hover:text-brand-700 transition-colors truncate">
-                {r.name}
-              </p>
-              {r.area && <p className="text-2xs text-ink-400">{r.area}</p>}
-            </div>
-
-            {/* Status badge */}
-            <div className="shrink-0">
-              <EstadoBadge estado={r.estado} />
-            </div>
-
-            {/* Time */}
-            <span className="text-2xs text-ink-400 whitespace-nowrap">{relativeTime(r.updatedAt)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function DocumentationStatus({ reportes }: { reportes: any[] }) {
-  // Calcular reportes incompletos (sin descripción o sin tablas)
-  const incomplete = reportes.filter(r => !r.desc || !r.tables || r.tables.length === 0).slice(0, 5)
-  const completeness = Math.round(((reportes.length - incomplete.length) / Math.max(reportes.length, 1)) * 100)
-
-  return (
-    <div className="card">
-      <div className="px-5 py-4 border-b border-surface-100 flex items-center gap-2">
-        <AlertTriangle size={18} className="text-amber-500" />
-        <h3 className="text-sm font-bold text-ink-900">Documentación Pendiente</h3>
-        <span className="text-2xs text-ink-300 ml-auto">{incomplete.length} reportes</span>
-      </div>
-      <div className="p-5 space-y-3">
-        {incomplete.length === 0 ? (
-          <div className="py-6 text-center">
-            <CheckCircle size={24} className="text-emerald-500 mx-auto mb-2" />
-            <p className="text-xs font-semibold text-ink-700">¡Todo documentado!</p>
-            <p className="text-2xs text-ink-400 mt-1">{completeness}% completitud</p>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between">
-              <span className="text-2xs font-semibold text-ink-600 uppercase">Completitud General</span>
-              <span className="text-sm font-bold text-amber-600">{completeness}%</span>
-            </div>
-            <div className="w-full h-2 rounded-full bg-surface-100 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full transition-all"
-                style={{ width: `${completeness}%` }}
-              />
-            </div>
-
-            <div className="pt-2 space-y-2">
-              {incomplete.map((r, i) => (
-                <div key={i} className="flex items-center gap-2 p-2.5 bg-amber-50 rounded-lg border border-amber-100">
-                  <AlertTriangle size={14} className="text-amber-500 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-ink-900 truncate">{r.name}</p>
-                    <p className="text-2xs text-amber-700">Falta documentación</p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-surface-50 border-b border-surface-100">
+              <th className="px-5 py-2.5 text-left text-2xs font-semibold text-ink-400 uppercase tracking-wider">Nombre</th>
+              <th className="px-5 py-2.5 text-left text-2xs font-semibold text-ink-400 uppercase tracking-wider">Workspace</th>
+              <th className="px-5 py-2.5 text-left text-2xs font-semibold text-ink-400 uppercase tracking-wider">Propietario</th>
+              <th className="px-5 py-2.5 text-left text-2xs font-semibold text-ink-400 uppercase tracking-wider">Estado</th>
+              <th className="px-5 py-2.5 text-left text-2xs font-semibold text-ink-400 uppercase tracking-wider">Últ. Actualización</th>
+              <th className="px-5 py-2.5" />
+            </tr>
+          </thead>
+          <tbody>
+            {recent.map(r => (
+              <tr key={r.id} className="border-b border-surface-50 hover:bg-surface-50 transition-colors">
+                <td className="px-5 py-3 font-medium text-ink-900">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{r.emoji || '📊'}</span>
+                    <span className="truncate max-w-[180px]">{r.name}</span>
                   </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+                </td>
+                <td className="px-5 py-3 text-ink-500">{r.area || '—'}</td>
+                <td className="px-5 py-3">
+                  {r.responsable
+                    ? <span className="text-ink-700">{r.responsable}</span>
+                    : <span className="text-2xs text-amber-600 font-medium">Sin asignar</span>
+                  }
+                </td>
+                <td className="px-5 py-3"><EstadoBadge estado={r.estado} /></td>
+                <td className="px-5 py-3 text-ink-400 text-2xs">{relativeTime(r.updatedAt)}</td>
+                <td className="px-5 py-3">
+                  <button
+                    onClick={() => { setActiveId(r.id); setActiveTab('resumen') }}
+                    className="inline-flex items-center gap-1 text-2xs text-brand-600 font-semibold hover:text-brand-800 transition-colors"
+                  >
+                    <Eye size={12} /> Ver
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
 }
 
-function ContributorsSection({ contributors, logs }: { contributors: string[]; logs: any[] }) {
-  const colors = ['bg-brand-500', 'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-teal-500']
-  const recentLogs = logs.slice(0, 5)
+/* ─── Full Reports Inventory ──────────────────────────────────────────── */
+
+function ReportsInventory({ reportes }: { reportes: any[] }) {
+  const { setActiveId, setActiveTab } = useStore()
+  const [sortBy, setSortBy] = useState<'name' | 'date' | 'area'>('date')
+
+  const sorted = [...reportes].sort((a, b) => {
+    if (sortBy === 'name') return a.name.localeCompare(b.name)
+    if (sortBy === 'area') return (a.area || '').localeCompare(b.area || '')
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  })
 
   return (
-    <div className="card">
-      <div className="px-5 py-4 border-b border-surface-100 flex items-center gap-2">
-        <Users size={18} className="text-ink-500" />
-        <h3 className="text-sm font-bold text-ink-900">Contribuidores Activos</h3>
-        <span className="text-2xs text-ink-300 ml-auto">{contributors.length} usuarios</span>
-      </div>
-      <div className="p-5">
-        <div className="flex items-center gap-2 mb-4">
-          {contributors.map((name, i) => (
-            <div
-              key={name}
-              className={`w-8 h-8 rounded-full ${colors[i % colors.length]} flex items-center justify-center text-white text-2xs font-bold`}
-              title={name}
+    <div className="card overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-surface-100 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <FileText size={15} className="text-ink-400" />
+          <h3 className="text-sm font-bold text-ink-900">Inventario Completo</h3>
+          <span className="text-2xs font-medium px-2 py-0.5 rounded bg-surface-100 text-ink-500">
+            {reportes.length} reportes
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-2xs text-ink-400 mr-1.5">Ordenar:</span>
+          {(['name', 'area', 'date'] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => setSortBy(s)}
+              className={`text-2xs font-medium px-2.5 py-1 rounded transition-all ${
+                sortBy === s
+                  ? 'bg-ink-900 text-white'
+                  : 'text-ink-500 hover:bg-surface-100'
+              }`}
             >
-              {getInitials(name)}
-            </div>
+              {s === 'name' ? 'Nombre' : s === 'area' ? 'Workspace' : 'Actualización'}
+            </button>
           ))}
         </div>
-
-        {/* Activity summary */}
-        <div className="space-y-2">
-          {recentLogs.map((log, i) => {
-            const actionColor = ACTION_COLORS[log.action] || '#6b7280'
-            return (
-              <div key={i} className="flex items-start gap-2 text-2xs">
-                <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: actionColor }} />
-                <p className="text-ink-700">
-                  <span className="font-semibold">{log.user_name}</span> {ACTION_LABELS[log.action] || 'modificó'} <span className="text-ink-500 font-mono">{log.target_id}</span>
-                </p>
-              </div>
-            )
-          })}
-        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-surface-50 border-b border-surface-100">
+              <th className="px-5 py-2.5 text-left text-2xs font-semibold text-ink-400 uppercase tracking-wider">Nombre</th>
+              <th className="px-5 py-2.5 text-left text-2xs font-semibold text-ink-400 uppercase tracking-wider">Workspace / Área</th>
+              <th className="px-5 py-2.5 text-left text-2xs font-semibold text-ink-400 uppercase tracking-wider">Responsable</th>
+              <th className="px-5 py-2.5 text-left text-2xs font-semibold text-ink-400 uppercase tracking-wider">Estado</th>
+              <th className="px-5 py-2.5 text-left text-2xs font-semibold text-ink-400 uppercase tracking-wider">Últ. Act.</th>
+              <th className="px-5 py-2.5 text-center text-2xs font-semibold text-ink-400 uppercase tracking-wider">Abrir</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map(r => (
+              <tr key={r.id} className="border-b border-surface-50 hover:bg-surface-50 transition-colors">
+                <td className="px-5 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{r.emoji || '📊'}</span>
+                    <span className="font-semibold text-ink-900 truncate max-w-[200px]">{r.name}</span>
+                  </div>
+                </td>
+                <td className="px-5 py-3">
+                  <p className="text-ink-700">{r.area || '—'}</p>
+                  {r.direccion && <p className="text-2xs text-ink-400 mt-0.5">{r.direccion}</p>}
+                </td>
+                <td className="px-5 py-3">
+                  {r.responsable
+                    ? <span className="text-ink-700">{r.responsable}</span>
+                    : <span className="text-2xs text-amber-600 font-medium bg-amber-50 px-1.5 py-0.5 rounded">Sin asignar</span>
+                  }
+                </td>
+                <td className="px-5 py-3"><EstadoBadge estado={r.estado} /></td>
+                <td className="px-5 py-3 text-ink-400 text-2xs whitespace-nowrap">{relativeTime(r.updatedAt)}</td>
+                <td className="px-5 py-3 text-center">
+                  <button
+                    onClick={() => { setActiveId(r.id); setActiveTab('resumen') }}
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-surface-50 text-ink-400 hover:bg-brand-50 hover:text-brand-600 transition-all"
+                    title="Ver documentación"
+                  >
+                    <Eye size={13} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
 }
 
-function ActivityFeed({ logs }: { logs: any[] }) {
+/* ─── Action Items (replaces big alert row) ───────────────────────────── */
+
+function ActionItems({ reportes }: { reportes: any[] }) {
+  const { setActiveId, setActiveTab } = useStore()
+
+  const noOwner = reportes.filter(r => !r.responsable)
+  const incomplete = reportes.filter(r => !r.desc || !r.tables || r.tables.length === 0)
+  const deprecated = reportes.filter(r => r.estado === 'deprecado')
+
+  const items = [
+    { key: 'no-owner', label: 'Sin Responsable', count: noOwner.length, color: '#d97706', list: noOwner },
+    { key: 'incomplete', label: 'Documentación Incompleta', count: incomplete.length, color: '#ef4444', list: incomplete },
+    { key: 'deprecated', label: 'Deprecados — Revisar', count: deprecated.length, color: '#9ca3af', list: deprecated },
+  ].filter(item => item.count > 0)
+
   return (
-    <div className="card">
-      <div className="px-5 py-4 border-b border-surface-100 flex items-center gap-2">
-        <Activity size={18} className="text-ink-500" />
-        <h3 className="text-sm font-bold text-ink-900">Historial Completo</h3>
-        <span className="text-2xs text-ink-300 ml-auto">últimas {logs.length}</span>
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <AlertCircle size={15} className="text-amber-500" />
+          <h3 className="text-sm font-bold text-ink-900">Pendientes de Atención</h3>
+        </div>
+        {items.length > 0 && (
+          <span className="text-2xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+            {items.reduce((s, i) => s + i.count, 0)} items
+          </span>
+        )}
       </div>
 
-      {/* Timeline */}
-      <div className="p-5 space-y-3">
-        {logs.slice(0, 10).map((log, i) => {
-          const dotColor = ACTION_COLORS[log.action] || '#6b7280'
-
-          return (
-            <div key={i} className="flex items-start gap-3 group">
-              {/* Timeline dot */}
-              <div className="flex flex-col items-center pt-0.5 shrink-0">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: dotColor }} />
-                {i < logs.length - 1 && (
-                  <div className="w-px h-8 bg-surface-200 mt-1" />
-                )}
+      {items.length === 0 ? (
+        <div className="text-center py-6">
+          <CheckCircle size={22} className="text-brand-500 mx-auto mb-2" />
+          <p className="text-xs text-ink-400">Sin tareas pendientes</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {items.map(item => (
+            <button
+              key={item.key}
+              className="w-full flex items-center justify-between p-3 rounded-lg bg-surface-50 hover:bg-surface-100 transition-all text-left"
+              style={{ borderLeft: `3px solid ${item.color}` }}
+              onClick={() => { if (item.list[0]) { setActiveId(item.list[0].id); setActiveTab('resumen') } }}
+            >
+              <span className="text-xs font-medium text-ink-700">{item.label}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-black" style={{ color: item.color }}>{item.count}</span>
+                <ChevronRight size={12} className="text-ink-300" />
               </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
-              {/* Content */}
-              <div className="flex-1 min-w-0 py-0.5">
-                <p className="text-xs text-ink-700 font-medium">
-                  <span className="font-bold text-ink-900">{log.user_name}</span>
-                  {' '}
-                  <span className="text-ink-600">{ACTION_LABELS[log.action] || log.action}</span>
-                </p>
-                <p className="text-2xs text-ink-400 mt-0.5">
-                  {log.target_id}
-                </p>
-                <span className="text-2xs text-ink-300 inline-block mt-1">
-                  {relativeTime(log.created_at)}
-                </span>
-              </div>
-            </div>
-          )
-        })}
+/* ─── Recent Activity Timeline ───────────────────────────────────────── */
+
+function RecentActivity({ logs }: { logs: any[] }) {
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-surface-100 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <Activity size={15} className="text-ink-400" />
+          <h3 className="text-sm font-bold text-ink-900">Actividad Reciente</h3>
+        </div>
+        <span className="text-2xs text-ink-300">{Math.min(logs.length, 15)} eventos</span>
+      </div>
+      <div className="p-5">
+        <div className="relative pl-4">
+          <div className="absolute left-0 top-1 bottom-1 w-px bg-surface-100" />
+          <div className="space-y-4">
+            {logs.slice(0, 15).map((log, i) => {
+              const dotColor = ACTION_COLORS[log.action] || '#6b7280'
+              return (
+                <div key={i} className="relative flex items-start gap-3">
+                  <div
+                    className="absolute -left-4 top-1.5 w-2 h-2 rounded-full border-2 border-white shrink-0"
+                    style={{ backgroundColor: dotColor }}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-xs text-ink-700 leading-snug">
+                      <span className="font-semibold text-ink-900">{log.user_name}</span>
+                      {' '}
+                      <span>{ACTION_LABELS[log.action] || log.action}</span>
+                      {' '}
+                      <span className="text-ink-500">{log.target_id}</span>
+                    </p>
+                    <p className="text-2xs text-ink-300 mt-0.5">{relativeTime(log.created_at)}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
     </div>
   )
