@@ -111,6 +111,10 @@ export function Sidebar({ onOpenJsonUpload, onOpenCreateModal, onOpenUserMenu, c
 
   const handleNavClick = (key: string) => {
     setActiveTab(key)
+    if (activeId === null && key !== 'notificaciones' && key !== 'guia') {
+      const first = filtered[0] || reportes[0]
+      if (first) setActiveId(first.id)
+    }
     setMobileOpen(false)
   }
 

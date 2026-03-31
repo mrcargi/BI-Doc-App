@@ -1,109 +1,8 @@
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect } from 'react'
 import gsap from 'gsap'
 import { Settings2, Table2, Columns3, FunctionSquare, Link2, ClipboardList, Database, Calendar, User, Layers, Plug, Wifi, FileType, Globe } from 'lucide-react'
 import type { Reporte } from '@/types'
 import { TypeBadge, EstadoBadge } from '@/components/ui/Badge'
-
-/* Card with animated border that draws progressively on hover */
-function GlowCard({ color, children, className = '' }: {
-  color: string; children: React.ReactNode; className?: string
-}) {
-  const cardRef = useRef<HTMLDivElement>(null)
-  const svgRef = useRef<SVGRectElement>(null)
-  const [dims, setDims] = useState({ w: 0, h: 0 })
-  const hovered = useRef(false)
-
-  const radius = 16 // matches rounded-2xl
-
-  const measure = useCallback(() => {
-    if (!cardRef.current) return
-    const { offsetWidth: w, offsetHeight: h } = cardRef.current
-    if (w !== dims.w || h !== dims.h) setDims({ w, h })
-  }, [dims.w, dims.h])
-
-  useEffect(() => {
-    measure()
-    const ro = new ResizeObserver(measure)
-    if (cardRef.current) ro.observe(cardRef.current)
-    return () => ro.disconnect()
-  }, [measure])
-
-  const perimeter = dims.w && dims.h ? 2 * (dims.w + dims.h) - 8 * radius + 2 * Math.PI * radius : 0
-
-  return (
-    <div
-      ref={cardRef}
-      className={`group relative rounded-2xl bg-surface-0 cursor-default ${className}`}
-      style={{
-        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-      }}
-      onMouseEnter={() => {
-        hovered.current = true
-        const rect = svgRef.current
-        if (!rect || !perimeter) return
-        gsap.killTweensOf(rect)
-        gsap.killTweensOf(cardRef.current)
-        gsap.to(rect, {
-          strokeDashoffset: 0,
-          duration: 0.5,
-          ease: 'power2.out',
-        })
-        if (cardRef.current) {
-          gsap.to(cardRef.current, {
-            boxShadow: `0 4px 20px ${color}25`,
-            duration: 0.3,
-          })
-        }
-      }}
-      onMouseLeave={() => {
-        hovered.current = false
-        const rect = svgRef.current
-        if (!rect || !perimeter) return
-        gsap.killTweensOf(rect)
-        gsap.killTweensOf(cardRef.current)
-        gsap.to(rect, {
-          strokeDashoffset: perimeter,
-          duration: 0.4,
-          ease: 'power2.in',
-        })
-        if (cardRef.current) {
-          gsap.to(cardRef.current, {
-            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-            duration: 0.3,
-          })
-        }
-      }}
-    >
-      {/* Content */}
-      <div className="relative rounded-2xl overflow-hidden" style={{ zIndex: 1 }}>
-        {children}
-      </div>
-      {/* All borders in one SVG — static base + animated draw */}
-      {dims.w > 0 && dims.h > 0 && (
-        <svg
-          className="absolute inset-0 pointer-events-none"
-          width={dims.w}
-          height={dims.h}
-          style={{ zIndex: 2 }}
-        >
-          {/* Animated full border — no static border, only draws on hover */}
-          <rect
-            ref={svgRef}
-            x="1" y="1"
-            width={dims.w - 2} height={dims.h - 2}
-            rx={radius} ry={radius}
-            fill="none"
-            stroke={color}
-            strokeWidth="2"
-            strokeDasharray={perimeter}
-            strokeDashoffset={perimeter}
-            strokeLinecap="round"
-          />
-        </svg>
-      )}
-    </div>
-  )
-}
 
 export function TabResumen({ doc }: { doc: Reporte }) {
   const heroRef = useRef<HTMLDivElement>(null)
@@ -197,16 +96,16 @@ export function TabResumen({ doc }: { doc: Reporte }) {
 
         {/* Metrics column — right, bento style */}
         <div className="grid grid-cols-2 lg:grid-cols-2 gap-3">
-          <MetricCard icon={Table2} value={tables.length} label="Tablas" color="text-brand-600" hex="#16a34a" />
-          <MetricCard icon={Columns3} value={(doc.columns || []).length} label="Columnas" color="text-blue-600" hex="#2563eb" />
-          <MetricCard icon={FunctionSquare} value={totalMeasures} label="Medidas DAX" color="text-violet-600" hex="#7c3aed" />
-          <MetricCard icon={Link2} value={activeRels} label="Relaciones" color="text-amber-600" hex="#d97706" />
+          <MetricCard icon={Table2} value={tables.length} label="Tablas" color="text-brand-600" accent="card-brand" />
+          <MetricCard icon={Columns3} value={(doc.columns || []).length} label="Columnas" color="text-blue-600" accent="card-blue" />
+          <MetricCard icon={FunctionSquare} value={totalMeasures} label="Medidas DAX" color="text-violet-600" accent="card-violet" />
+          <MetricCard icon={Link2} value={activeRels} label="Relaciones" color="text-amber-600" accent="card-amber" />
         </div>
       </div>
 
       {/* Details + Source row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <GlowCard color="#16a34a">
+        <div className="card card-brand">
           <div className="p-5 space-y-1">
             <div className="flex items-center gap-2.5 mb-3">
               <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center text-brand-600">
@@ -221,10 +120,10 @@ export function TabResumen({ doc }: { doc: Reporte }) {
             <DetailRow icon={Calendar} label="Creado" value={doc.createdAt || '—'} accent="text-amber-500" />
             <DetailRow icon={Calendar} label="Actualizado" value={doc.updatedAt || '—'} accent="text-amber-500" />
           </div>
-        </GlowCard>
+        </div>
 
         {doc.source && (
-          <GlowCard color="#d97706">
+          <div className="card card-amber">
             <div className="p-5 space-y-1">
               <div className="flex items-center gap-2.5 mb-3">
                 <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
@@ -237,12 +136,12 @@ export function TabResumen({ doc }: { doc: Reporte }) {
               {doc.source.url && <DetailRow icon={Globe} label="URL" value={doc.source.url} accent="text-violet-500" />}
               {doc.source.fileType && <DetailRow icon={FileType} label="Archivos" value={doc.source.fileType} accent="text-brand-500" />}
             </div>
-          </GlowCard>
+          </div>
         )}
       </div>
 
       {/* Tables — full width */}
-      <GlowCard color="#2563eb">
+      <div className="card card-blue overflow-hidden">
         <div className="px-5 py-4 flex items-center justify-between border-b border-surface-100">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
@@ -274,16 +173,16 @@ export function TabResumen({ doc }: { doc: Reporte }) {
             </tbody>
           </table>
         </div>
-      </GlowCard>
+      </div>
     </div>
   )
 }
 
-function MetricCard({ icon: Icon, value, label, color, hex }: {
-  icon: React.ElementType; value: number; label: string; color: string; hex: string
+function MetricCard({ icon: Icon, value, label, color, accent }: {
+  icon: React.ElementType; value: number; label: string; color: string; accent: string
 }) {
   return (
-    <GlowCard color={hex}>
+    <div className={`card ${accent}`}>
       <div className="p-4 flex flex-col justify-between h-full">
         <div className={`w-9 h-9 rounded-xl bg-surface-100 flex items-center justify-center ${color} mb-3`}>
           <Icon size={17} />
@@ -293,7 +192,7 @@ function MetricCard({ icon: Icon, value, label, color, hex }: {
           <div className="text-2xs text-ink-400 uppercase tracking-wider font-semibold mt-1">{label}</div>
         </div>
       </div>
-    </GlowCard>
+    </div>
   )
 }
 

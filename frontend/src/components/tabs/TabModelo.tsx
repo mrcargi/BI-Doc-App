@@ -17,7 +17,7 @@ export function TabModelo({ doc }: { doc: Reporte }) {
       </div>
 
       {/* Relations table */}
-      <div className="card overflow-hidden border-t-2 border-t-blue-500">
+      <div className="card card-blue overflow-hidden">
         <div className="card-header flex items-center gap-2">
           <GitBranch size={15} className="text-blue-600" />
           <h3 className="text-sm font-bold text-ink-900">Relaciones</h3>

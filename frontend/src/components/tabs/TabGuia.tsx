@@ -314,16 +314,16 @@ export function TabGuia() {
 function CollapsibleSection({ id, icon: Icon, title, subtitle, color, open, onToggle, children }: {
   id: string; icon: React.ElementType; title: string; subtitle: string; color: string; open: boolean; onToggle: () => void; children: React.ReactNode
 }) {
-  const colorMap: Record<string, { border: string; bg: string; text: string }> = {
-    brand: { border: 'border-t-brand-500', bg: 'bg-brand-50', text: 'text-brand-600' },
-    violet: { border: 'border-t-violet-500', bg: 'bg-violet-50', text: 'text-violet-600' },
-    blue: { border: 'border-t-blue-500', bg: 'bg-blue-50', text: 'text-blue-600' },
-    amber: { border: 'border-t-amber-500', bg: 'bg-amber-50', text: 'text-amber-600' },
+  const colorMap: Record<string, { accent: string; bg: string; text: string }> = {
+    brand: { accent: 'card-brand', bg: 'bg-brand-50', text: 'text-brand-600' },
+    violet: { accent: 'card-violet', bg: 'bg-violet-50', text: 'text-violet-600' },
+    blue: { accent: 'card-blue', bg: 'bg-blue-50', text: 'text-blue-600' },
+    amber: { accent: 'card-amber', bg: 'bg-amber-50', text: 'text-amber-600' },
   }
   const c = colorMap[color] || colorMap.brand
 
   return (
-    <div className={`card overflow-hidden border-t-2 ${c.border}`}>
+    <div className={`card ${c.accent} overflow-hidden`}>
       <button
         onClick={onToggle}
         className="w-full card-header flex items-center gap-3 cursor-pointer hover:bg-surface-50/50 transition-colors"

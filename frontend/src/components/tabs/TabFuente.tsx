@@ -21,7 +21,7 @@ export function TabFuente({ doc }: { doc: Reporte }) {
   return (
     <div className="space-y-5">
       {/* Architecture overview */}
-      <div className="card overflow-hidden border-t-2 border-t-brand-500">
+      <div className="card overflow-hidden card-brand">
         <div className="card-header flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-brand-50 flex items-center justify-center">
             <Cable size={16} className="text-brand-600" />
@@ -84,7 +84,7 @@ export function TabFuente({ doc }: { doc: Reporte }) {
       </div>
 
       {/* Connector details */}
-      <div className="card overflow-hidden border-t-2 border-t-amber-500">
+      <div className="card overflow-hidden card-amber">
         <div className="card-header flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
             <Server size={16} className="text-amber-600" />
@@ -107,7 +107,7 @@ export function TabFuente({ doc }: { doc: Reporte }) {
 
       {/* Tables from source */}
       {importTables.length > 0 && (
-        <div className="card overflow-hidden border-t-2 border-t-blue-500">
+        <div className="card overflow-hidden card-blue">
           <div className="card-header flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
               <Table2 size={16} className="text-blue-600" />
@@ -141,7 +141,7 @@ export function TabFuente({ doc }: { doc: Reporte }) {
 
       {/* Calculated tables */}
       {calcTables.length > 0 && (
-        <div className="card overflow-hidden border-t-2 border-t-violet-500">
+        <div className="card overflow-hidden card-violet">
           <div className="card-header flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center">
               <Layers size={16} className="text-violet-600" />
@@ -178,7 +178,7 @@ export function TabFuente({ doc }: { doc: Reporte }) {
 
       {/* Transformation steps */}
       {s.steps && s.steps.length > 0 && (
-        <div className="card overflow-hidden border-t-2 border-t-violet-500">
+        <div className="card overflow-hidden card-violet">
           <div className="card-header flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-violet-50 flex items-center justify-center">
               <Workflow size={16} className="text-violet-600" />
