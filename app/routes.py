@@ -367,7 +367,7 @@ def debug_auth():
         "password_hash_length": len(user.get('password_hash', ''))
     }
 
-@router.post("/auth/reset-admin", summary="Reset admin password (temporary)")
+@router.get("/auth/reset-admin", summary="Reset admin password (temporary)")
 def reset_admin():
     """Temporary endpoint to reset admin password from environment variables."""
     admin_pw = os.environ.get("ADMIN_DEFAULT_PASSWORD")
