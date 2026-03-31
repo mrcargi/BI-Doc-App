@@ -18,8 +18,6 @@ if not SECRET_KEY:
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 12
 
-security = HTTPBearer(auto_error=False)
-
 def create_token(user_id: int, role: str) -> str:
     payload = {
         "sub": str(user_id),
