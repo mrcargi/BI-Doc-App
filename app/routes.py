@@ -348,3 +348,31 @@ def update_area(area_id: str, payload: AreaUpdate, admin=Depends(require_admin))
 def delete_area(area_id: str, admin=Depends(require_admin)):
     if not db.delete_area(area_id): raise HTTPException(404)
     return MessageResponse(ok=True, message="Área eliminada", id=area_id)
+
+# ═══ ADMIN RESET (temporary) ═══════════════════════════════════
+import os
+@router.post("/auth/reset-admin", summary="Reset admin password (temporary)")
+def reset_admin():
+    """Temporary endpoint to reset admin password from environment variables."""
+    admin_pw = os.environ.get("ADMIN_DEFAULT_PASSWORD")
+    if not admin_pw:
+        raise HTTPException(400, detail="ADMIN_DEFAULT_PASSWORD not set")
+
+    admin_email = os.environ.get("ADMIN_DEFAULT_EMAIL", "admin@nadro.com")
+    conn = db.get_db()
+
+    # Try to find and update existing admin
+    admin_user = conn.execute("SELECT id FROM users WHERE role = 'admin' LIMIT 1").fetchone()
+    if admin_user:
+        conn.execute(
+            "UPDATE users SET password_hash = ?, email = ? WHERE id = ?",
+            (db.hash_password(admin_pw), admin_email, admin_user['id'])
+        )
+        conn.commit()
+        conn.close()
+        return {"ok": True, "message": f"Admin reset: {admin_email}", "password": admin_pw}
+
+    # Create if doesn't exist
+    conn.close()
+    db.create_user(admin_email, admin_pw, 'Administrador', 'admin')
+    return {"ok": True, "message": f"Admin created: {admin_email}", "password": admin_pw}
