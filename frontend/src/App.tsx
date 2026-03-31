@@ -31,15 +31,16 @@ export function App() {
     setOnUnauthorized(logout)
   }, [logout])
 
-  // Boot: verify token and load data
+  // Boot: verify session and load data
   useEffect(() => {
     async function boot() {
-      if (!token) { setReady(true); return }
       try {
+        // Always try to validate session with backend (cookie-based)
         const me = await apiFetch<User>('/auth/me')
-        login(token, me)
+        login('', me)  // Token is in httpOnly cookie, not needed here
         await loadData()
-      } catch {
+      } catch (err) {
+        // No valid session, show login screen
         logout()
       }
       setReady(true)
