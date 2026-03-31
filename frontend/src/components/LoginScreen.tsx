@@ -48,11 +48,12 @@ export function LoginScreen() {
       })
       const data: LoginResponse & { detail?: string } = await res.json()
       if (!res.ok) {
-        setError(data.detail || 'Credenciales invalidas')
+        // Always use generic message to prevent email enumeration
+        setError('Invalid email or password')
         return
       }
       if (!data.token) {
-        setError('Error: servidor no devolvio token')
+        setError('Authentication failed. Please try again.')
         return
       }
 

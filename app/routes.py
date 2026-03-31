@@ -3,10 +3,12 @@ routes.py — Todos los endpoints de la API PBI Docs (con autenticación)
 """
 import re
 import json
+import time
 from pathlib import Path
 from typing import Optional
+from collections import defaultdict
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Query, Depends, Body
+from fastapi import APIRouter, HTTPException, UploadFile, File, Query, Depends, Body, Request
 from fastapi.responses import JSONResponse, Response
 
 from app import database as db
@@ -24,25 +26,73 @@ PDFS_DIR.mkdir(exist_ok=True)
 MAX_PDF_MB = 50
 VALID_DIRS = []
 
+# ═══ RATE LIMITING ═════════════════════════════════════════════
+login_attempts = defaultdict(list)  # {ip: [timestamp, timestamp, ...]}
+RATE_LIMIT_ATTEMPTS = 5
+RATE_LIMIT_WINDOW = 60  # seconds
+
+def check_rate_limit(request: Request, key: str = None) -> bool:
+    """Check if request exceeds rate limit. Returns True if allowed, False if blocked."""
+    ip = request.client.host
+    limit_key = f"{ip}:{key}" if key else ip
+    now = time.time()
+
+    # Clean old attempts
+    login_attempts[limit_key] = [t for t in login_attempts[limit_key] if now - t < RATE_LIMIT_WINDOW]
+
+    if len(login_attempts[limit_key]) >= RATE_LIMIT_ATTEMPTS:
+        return False
+
+    login_attempts[limit_key].append(now)
+    return True
+
 # ═══ AUTH ═══════════════════════════════════════════════════════
 @router.post("/auth/login", summary="Iniciar sesión")
-def login(payload: LoginRequest):
+def login(request: Request, payload: LoginRequest):
+    # Rate limiting: 5 attempts per minute per IP
+    if not check_rate_limit(request, key=payload.email):
+        raise HTTPException(429, "Too many login attempts. Try again in 1 minute.")
+
     user = authenticate_user(payload.email, payload.password)
     if not user:
-        raise HTTPException(401, "Credenciales inválidas")
+        raise HTTPException(401, "Invalid credentials")
+
     token = create_token(user['id'], user['role'])
     db.log_action(user['id'], 'login')
-    return {"token": token, "user": {"id": user['id'], "email": user['email'], "name": user['name'], "role": user['role']}}
+
+    response = JSONResponse({"user": {"id": user['id'], "email": user['email'], "name": user['name'], "role": user['role']}})
+    response.set_cookie(
+        "auth_token",
+        token,
+        max_age=43200,  # 12 hours
+        httponly=True,  # Prevent JavaScript access
+        secure=True,    # HTTPS only
+        samesite="strict",  # CSRF protection
+        path="/"
+    )
+    return response
 
 @router.get("/auth/me", summary="Usuario actual")
 def get_me(user=Depends(get_current_user)):
     return user
 
+def validate_password_strength(password: str):
+    """Validate password meets complexity requirements"""
+    if len(password) < 12:
+        raise HTTPException(400, "Password must be at least 12 characters")
+    if not any(c.isupper() for c in password):
+        raise HTTPException(400, "Password must include uppercase letters")
+    if not any(c.isdigit() for c in password):
+        raise HTTPException(400, "Password must include numbers")
+    if not any(c in "!@#$%^&*-_=+" for c in password):
+        raise HTTPException(400, "Password must include special characters (!@#$%^&*)")
+
 @router.put("/auth/password", summary="Cambiar contraseña")
 def change_password(payload: PasswordChange, user=Depends(get_current_user)):
-    if len(payload.password) < 6: raise HTTPException(400, "Mínimo 6 caracteres")
+    validate_password_strength(payload.password)
     db.update_user_password(user['id'], payload.password)
-    return {"ok": True, "message": "Contraseña actualizada"}
+    db.log_action(user['id'], 'change_password')
+    return {"ok": True, "message": "Password updated"}
 
 # ═══ USERS (admin) ═════════════════════════════════════════════
 @router.get("/users", summary="Listar usuarios")
@@ -51,10 +101,10 @@ def list_users(admin=Depends(require_admin)):
 
 @router.post("/users", summary="Crear usuario")
 def create_user_endpoint(payload: UserCreate, admin=Depends(require_admin)):
-    if payload.role not in ('admin','editor'): raise HTTPException(400, "Rol inválido")
-    if len(payload.password) < 6: raise HTTPException(400, "Contraseña mínimo 6 caracteres")
+    if payload.role not in ('admin','editor'): raise HTTPException(400, "Invalid role")
+    validate_password_strength(payload.password)
     user = db.create_user(payload.email, payload.password, payload.name, payload.role)
-    if not user: raise HTTPException(409, "Email ya registrado")
+    if not user: raise HTTPException(409, "Email already registered")
     db.log_action(admin['id'], 'create_user', 'user', str(user['id']))
     return {"ok": True, "user": {"id": user['id'], "email": user['email'], "name": user['name'], "role": user['role']}}
 
@@ -71,9 +121,10 @@ def update_user_endpoint(user_id: int, payload: UserUpdate, admin=Depends(requir
 
 @router.put("/users/{user_id}/password", summary="Reset contraseña")
 def reset_password(user_id: int, payload: PasswordChange, admin=Depends(require_admin)):
-    if len(payload.password) < 6: raise HTTPException(400, "Mínimo 6 caracteres")
+    validate_password_strength(payload.password)
     db.update_user_password(user_id, payload.password)
-    return {"ok": True, "message": "Contraseña reseteada"}
+    db.log_action(admin['id'], 'reset_password', 'user', str(user_id))
+    return {"ok": True, "message": "Password reset"}
 
 @router.delete("/users/{user_id}", summary="Eliminar usuario")
 def delete_user_endpoint(user_id: int, admin=Depends(require_admin)):

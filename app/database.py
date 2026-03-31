@@ -476,10 +476,13 @@ def ensure_admin_exists():
     count = conn.execute("SELECT COUNT(*) as c FROM users").fetchone()['c']
     conn.close()
     if count == 0:
-        default_pw = os.environ.get("ADMIN_DEFAULT_PASSWORD", "admin123")
+        default_pw = os.environ.get("ADMIN_DEFAULT_PASSWORD")
+        if not default_pw:
+            default_pw = secrets.token_urlsafe(16)
+            print(f"\n⚠️  ADMIN PASSWORD (SAVE THIS): {default_pw}\n")
         default_email = os.environ.get("ADMIN_DEFAULT_EMAIL", "admin@nadro.com")
         create_user(default_email, default_pw, 'Administrador', 'admin')
-        print(f"✓ Usuario admin creado: {default_email}")
+        print(f"✓ Usuario admin creado: {default_email}\n")
 
 def bootstrap():
     """Initialize everything."""

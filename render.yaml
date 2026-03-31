@@ -3,19 +3,46 @@ services:
     name: bi-hub
     runtime: python
     buildCommand: bash build.sh
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips '*'
     envVars:
+      # 🔐 SECURITY: Auto-generated secrets
       - key: SECRET_KEY
         generateValue: true
       - key: ADMIN_DEFAULT_PASSWORD
         generateValue: true
+
+      # 📧 Admin configuration
       - key: ADMIN_DEFAULT_EMAIL
         value: "admin@nadro.com"
+
+      # 🌐 CORS: Update with your domain(s)
+      - key: ALLOWED_ORIGINS
+        value: "https://bi-hub.onrender.com"
+        sync: false  # Change manually in Render dashboard
+
+      # 🔧 Runtime versions
       - key: PYTHON_VERSION
         value: "3.13.0"
       - key: NODE_VERSION
         value: "20.11.0"
+
+    # 💾 Persistent storage
     disk:
       name: bi-hub-data
       mountPath: /opt/render/project/src/data
-      sizeGB: 1
+      sizeGB: 10
+
+    # 🔒 Security headers
+    routes:
+      - path: /
+        priority: 0
+
+    # Health check
+    healthCheckPath: /api/auth/me
+    healthCheckInterval: 300  # 5 minutes
+
+    # Scaling
+    numInstances: 1
+
+    # Timeout
+    startTimeoutSeconds: 120

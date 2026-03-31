@@ -5,12 +5,16 @@ import os
 import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict
-from fastapi import HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import HTTPException, Depends, Request
 
 from app.database import get_user_by_id, get_user_by_email, verify_password, update_last_login
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-change-in-production")
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "CRITICAL: SECRET_KEY environment variable not set. "
+        "Generate one with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+    )
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 12
 
@@ -42,15 +46,29 @@ def authenticate_user(email: str, password: str) -> Optional[Dict]:
     update_last_login(user['id'])
     return user
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
-    if not credentials:
-        raise HTTPException(status_code=401, detail="No autenticado")
-    payload = decode_token(credentials.credentials)
+async def get_current_user(request: Request) -> Dict:
+    # Try httpOnly cookie first (production method)
+    token = request.cookies.get("auth_token")
+
+    # Fallback to Authorization header (dev/API clients)
+    if not token and request.headers.get("authorization"):
+        try:
+            auth_header = request.headers.get("authorization")
+            token = auth_header.replace("Bearer ", "")
+        except:
+            pass
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    payload = decode_token(token)
     if not payload:
-        raise HTTPException(status_code=401, detail="Token inválido o expirado")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
     user = get_user_by_id(payload["sub"])
     if not user or not user.get('is_active'):
-        raise HTTPException(status_code=401, detail="Usuario no encontrado o desactivado")
+        raise HTTPException(status_code=401, detail="User not found or disabled")
+
     return {"id": user['id'], "email": user['email'], "name": user['name'], "role": user['role']}
 
 async def require_admin(user: Dict = Depends(get_current_user)) -> Dict:

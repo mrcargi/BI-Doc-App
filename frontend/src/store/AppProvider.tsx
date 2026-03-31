@@ -87,17 +87,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [darkMode, applyTheme])
 
   const login = useCallback((t: string, u: User) => {
+    // Token is now stored in httpOnly cookie by backend
+    // Only store non-sensitive UI data
     setToken(t)
     setUser(u)
-    localStorage.setItem('pbi_token', t)
-    localStorage.setItem('pbi_user', JSON.stringify(u))
-  }, [])
+    localStorage.setItem('pbi_dark', darkMode ? '1' : '0')
+  }, [darkMode])
 
   const logout = useCallback(() => {
     setToken(null)
     setUser(null)
-    localStorage.removeItem('pbi_token')
-    localStorage.removeItem('pbi_user')
+    // Cookie is cleared by backend via Set-Cookie with Max-Age=0
   }, [])
 
   const updateReporte = useCallback((r: Reporte) => {
